@@ -9,9 +9,10 @@ build/
 dist/
 .ipynb_checkpoints/
 
-# Data, fitted models, text-derived outputs, and submissions stay local.
+# Data, fitted models, backbone weights, outputs, and submissions stay local.
 /data/
 /artifacts/
+/models/
 /submission*.parquet
 /submission*.csv
 

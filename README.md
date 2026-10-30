@@ -56,6 +56,39 @@ uv run python scripts/train_baseline.py --output-dir artifacts/experiment-02 --c
 The equivalent installed commands are `uv run ntl-download`, `uv run ntl-train`,
 and `uv run ntl-predict`. Use `--help` for their options.
 
+### Iteration 2: frozen backbone features
+
+The stacked trainer adds frozen Qwen3-1.7B-Base features to the TF-IDF signals:
+
+```bash
+uv sync --locked                                             # installs torch CPU wheels
+uv run python scripts/extract_lm_features.py                  # one slow inference pass
+uv run python scripts/train_stacked.py --output-dir artifacts/stacked-v2
+```
+
+`extract_lm_features.py` runs the backbone on CPU only, scoring the passages the
+trainer selects from the expanded dataset and saving numeric features to
+`artifacts/features/lm_v2.parquet` plus a `.parquet.meta.json` sidecar with the
+layers, token cap, file hash, and dataset hash. It refuses to overwrite the file.
+Expect several hours of CPU inference; the script has no GPU dependency.
+
+`train_stacked.py` validates with the same seeded, prompt-grouped folds as the
+baseline, so per-fold scores and the share of identical out-of-fold predictions
+compare the two designs directly. It saves three files to the new output
+directory: `model.joblib` (vectorizer, scaler, and classifier), `metrics.json`,
+and `oof_predictions.csv`.
+
+Backbone choice: `Qwen/Qwen3-1.7B-Base`, Apache 2.0, ungated on Hugging Face.
+Layers 1, 7, 13, 19, 25, 28 are mean-pooled and max-abs-pooled over tokens
+(padding masked), with token count and mean-state norm. Change layers with
+`--layers` and the token cap with `--max-length`.
+
+Kaggle note: the bundle contains only fitted scikit-learn objects. A submission
+notebook must also recompute backbone features offline, which needs the weights
+and `transformers` available in the notebook environment. Local generation of
+test-time features is not implemented yet; do not treat stacked scores as a
+substitutable submission pipeline until that exists.
+
 ### Verified local run
 
 The default command was run on 2026-10-30 using dataset version 7: 4,818 passages,

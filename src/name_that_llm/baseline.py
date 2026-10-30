@@ -26,10 +26,11 @@ from name_that_llm.data import (
 from name_that_llm.download import DEFAULT_DATA_DIR, sha256
 
 
-def build_model(
-    *, seed: int = 42, min_df: int = 2, max_features: int = 100_000, c: float = 1.0
-) -> Pipeline:
-    features = FeatureUnion(
+def make_text_vectorizer(
+    *, min_df: int = 2, max_features: int = 100_000, dtype=np.float32
+) -> FeatureUnion:
+    """Word + character TF-IDF views, case and Unicode typography preserved."""
+    return FeatureUnion(
         [
             (
                 "word",
@@ -39,7 +40,7 @@ def build_model(
                     max_features=max_features,
                     sublinear_tf=True,
                     lowercase=False,
-                    dtype=np.float32,
+                    dtype=dtype,
                 ),
             ),
             (
@@ -51,11 +52,17 @@ def build_model(
                     max_features=max_features,
                     sublinear_tf=True,
                     lowercase=False,
-                    dtype=np.float32,
+                    dtype=dtype,
                 ),
             ),
         ]
     )
+
+
+def build_model(
+    *, seed: int = 42, min_df: int = 2, max_features: int = 100_000, c: float = 1.0
+) -> Pipeline:
+    features = make_text_vectorizer(min_df=min_df, max_features=max_features)
     return Pipeline(
         [
             ("features", features),
