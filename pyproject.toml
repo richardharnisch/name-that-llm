@@ -1,7 +1,7 @@
 [project]
 name = "name-that-llm"
 version = "0.1.0"
-description = "Prompt-safe CPU baselines for the Kaggle Name That LLM competition."
+description = "Kaggle Name That LLM competition work for UvA MSc AI NLP course."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
