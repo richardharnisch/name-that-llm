@@ -1,0 +1,22 @@
+# Environments and Python tooling
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+.ipynb_checkpoints/
+
+# Data, fitted models, text-derived outputs, and submissions stay local.
+/data/
+/artifacts/
+/submission*.parquet
+/submission*.csv
+
+# Never commit credentials.
+.env
+.env.*
+kaggle.json
+.kaggle/

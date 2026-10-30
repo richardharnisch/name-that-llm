@@ -1,0 +1,35 @@
+[project]
+name = "name-that-llm"
+version = "0.1.0"
+description = "Prompt-safe CPU baselines for the Kaggle Name That LLM competition."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "joblib>=1.4,<2",
+    "numpy>=2.0,<3",
+    "pandas>=2.2,<3",
+    "pyarrow>=18,<24",
+    "scikit-learn>=1.6,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[project.scripts]
+ntl-download = "name_that_llm.download:main"
+ntl-train = "name_that_llm.baseline:train_main"
+ntl-predict = "name_that_llm.baseline:predict_main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
