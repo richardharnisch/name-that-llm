@@ -1,7 +1,8 @@
-"""Run a simple tokenizer + encoder + logistic regression experiment."""
+"""Train and evaluate logistic regression on cached BPE document features."""
 
 import argparse
 import json
+from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter
 
@@ -22,18 +23,26 @@ from sklearn.metrics import (
 
 from name_that_llm.config import (
     DATA_DIR,
+    DEFAULT_TOKENIZER,
     DEFAULT_TRAINING,
+    TOKENIZER_ROOT,
     TRAIN_OUTPUT_DIR,
+    TokenizerConfig,
     TrainingConfig,
     save_config,
 )
-from name_that_llm.data import validate_columns
-from name_that_llm.encodings import BagOfWords, Encoder, TokenIndicator
+from name_that_llm.encodings import BagOfWords, TokenIndicator
+from name_that_llm.preprocess import preprocess_data
+from name_that_llm.tokenizer import Tokenizer
 
 
-def encode_texts(texts: pd.Series, encoder: Encoder) -> csr_matrix:
-    """Keep document vectors sparse so the full matrix fits in memory."""
-    return vstack([csr_matrix(encoder(text)) for text in texts], format="csr")
+def encode_samples(
+    input_ids: pd.Series, encoder: BagOfWords | TokenIndicator
+) -> csr_matrix:
+    """Build sparse document vectors from saved IDs without tokenizing again."""
+    return vstack(
+        [csr_matrix(encoder.from_ids(ids)) for ids in input_ids], format="csr"
+    )
 
 
 def save_plots(labels, predictions, classes, report: dict, output: Path) -> None:
@@ -66,44 +75,49 @@ def run(args: argparse.Namespace) -> None:
     start = perf_counter()
     config = TrainingConfig(
         encoder=args.encoder,
-        max_vocab=args.max_vocab,
         max_iter=args.max_iter,
         seed=args.seed,
         limit_per_class=args.limit_per_class,
     )
-    train = pd.read_csv(args.train, dtype=str, keep_default_na=False)
-    val = pd.read_csv(args.val, dtype=str, keep_default_na=False)
-    for frame in (train, val):
-        validate_columns(frame, ("text", "model"))
-    if train["model"].nunique() < 2:
-        raise ValueError("Training requires at least two model labels.")
-    if set(train["model"]) != set(val["model"]):
-        raise ValueError("Train and validation must contain the same model labels.")
-    if "prompt_id" in train and "prompt_id" in val:
-        if set(train["prompt_id"]) & set(val["prompt_id"]):
-            raise ValueError("Train and validation contain overlapping prompt IDs.")
-    if args.limit_per_class is not None:
+    tokenizer_config = TokenizerConfig(
+        vocab_size=args.vocab_size, min_frequency=args.min_frequency
+    )
+    print("Preparing BPE tokenizer and tokenized samples...", flush=True)
+    tokenizer_path, sample_directory, reused = preprocess_data(
+        directory=args.data_dir,
+        tokenizer_root=args.tokenizer_root,
+        output=args.tokenized_root,
+        vocab_size=tokenizer_config.vocab_size,
+        min_frequency=tokenizer_config.min_frequency,
+    )
+    print(
+        f"{'Reused' if reused else 'Created'} BPE tokenizer and samples: {tokenizer_path}",
+        flush=True,
+    )
+    tokenizer = Tokenizer.from_file(str(tokenizer_path))
+    train = pd.read_parquet(sample_directory / "train.parquet")
+    val = pd.read_parquet(sample_directory / "val.parquet")
+    if config.limit_per_class is not None:
         train, val = (
             frame.groupby("model", group_keys=False).sample(
-                n=min(args.limit_per_class, frame.groupby("model").size().min()),
-                random_state=args.seed,
+                n=min(config.limit_per_class, frame.groupby("model").size().min()),
+                random_state=config.seed,
             )
             for frame in (train, val)
         )
 
     print(f"Train: {len(train):,} rows; validation: {len(val):,} rows", flush=True)
-    tokenizer = Tokenizer(max_vocab=args.max_vocab).fit(train["text"])
     encoder = (
         BagOfWords(tokenizer)
-        if args.encoder == "bag-of-words"
+        if config.encoder == "bag-of-words"
         else TokenIndicator(tokenizer)
     )
-    print(f"Encoder: {args.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
-    x_train = encode_texts(train["text"], encoder)
-    x_val = encode_texts(val["text"], encoder)
+    print(f"Encoder: {config.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
+    x_train = encode_samples(train["input_ids"], encoder)
+    x_val = encode_samples(val["input_ids"], encoder)
 
     print("Fitting logistic regression...", flush=True)
-    classifier = LogisticRegression(max_iter=args.max_iter, random_state=args.seed)
+    classifier = LogisticRegression(max_iter=config.max_iter, random_state=config.seed)
     classifier.fit(x_train, train["model"])
     predictions = classifier.predict(x_val)
     report = classification_report(
@@ -114,11 +128,12 @@ def run(args: argparse.Namespace) -> None:
         zero_division=0,
     )
     metrics = {
-        "encoder": args.encoder,
-        "seed": args.seed,
-        "max_vocab": args.max_vocab,
-        "max_iter": args.max_iter,
-        "limit_per_class": args.limit_per_class,
+        **asdict(config),
+        "tokenizer": "bpe",
+        "tokenizer_path": str(tokenizer_path),
+        "sample_directory": str(sample_directory),
+        "requested_vocab_size": tokenizer_config.vocab_size,
+        "min_frequency": tokenizer_config.min_frequency,
         "train_rows": len(train),
         "validation_rows": len(val),
         "vocab_size": len(encoder),
@@ -143,7 +158,9 @@ def run(args: argparse.Namespace) -> None:
     print(classification_report(val["model"], predictions, digits=3, zero_division=0))
 
     args.output.mkdir(parents=True, exist_ok=True)
-    save_config(args.output / "config.json", training=config)
+    save_config(
+        args.output / "config.json", tokenizer=tokenizer_config, training=config
+    )
     (args.output / "metrics.json").write_text(
         json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
     )
@@ -156,15 +173,35 @@ def run(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--train", type=Path, default=DATA_DIR / "train.csv")
-    parser.add_argument("--val", type=Path, default=DATA_DIR / "val.csv")
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=DATA_DIR,
+        help="Directory containing train.csv and val.csv",
+    )
+    parser.add_argument("--tokenizer-root", type=Path, default=TOKENIZER_ROOT)
+    parser.add_argument(
+        "--tokenized-root",
+        type=Path,
+        help="Tokenized data root (default: <data-dir>/tokenized)",
+    )
     parser.add_argument("--output", type=Path, default=TRAIN_OUTPUT_DIR)
     parser.add_argument(
         "--encoder",
         choices=("bag-of-words", "token-indicator"),
         default=DEFAULT_TRAINING.encoder,
     )
-    parser.add_argument("--max-vocab", type=int, default=DEFAULT_TRAINING.max_vocab)
+    parser.add_argument(
+        "--vocab-size",
+        "--max-vocab",
+        dest="vocab_size",
+        type=int,
+        default=DEFAULT_TOKENIZER.vocab_size,
+        help="Requested BPE vocabulary size",
+    )
+    parser.add_argument(
+        "--min-frequency", type=int, default=DEFAULT_TOKENIZER.min_frequency
+    )
     parser.add_argument("--max-iter", type=int, default=DEFAULT_TRAINING.max_iter)
     parser.add_argument("--seed", type=int, default=DEFAULT_TRAINING.seed)
     parser.add_argument(
@@ -174,8 +211,10 @@ def main() -> None:
         help="Cap rows per class in each set for a quick run",
     )
     args = parser.parse_args()
-    if args.max_vocab < 2 or args.max_iter < 1:
-        parser.error("--max-vocab must be at least 2 and --max-iter must be positive.")
+    if args.vocab_size < 2 or args.min_frequency < 1 or args.max_iter < 1:
+        parser.error(
+            "--vocab-size must be at least 2; --min-frequency and --max-iter must be positive."
+        )
     if args.limit_per_class is not None and args.limit_per_class < 1:
         parser.error("--limit-per-class must be positive.")
     try:

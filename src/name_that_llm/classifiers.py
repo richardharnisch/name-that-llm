@@ -2,7 +2,6 @@ import torch.nn as nn
 
 from name_that_llm.config import DEFAULT_MLP
 
-
 class LogLinear(nn.Module):
     def __init__(self, d_in, n_classes):
         super().__init__()
@@ -10,7 +9,6 @@ class LogLinear(nn.Module):
 
     def forward(self, x):
         return self.out(x)  # logits; use CrossEntropyLoss
-
 
 class MLP(nn.Module):
     def __init__(self, d_in, n_classes, hidden=DEFAULT_MLP.hidden, act=None):

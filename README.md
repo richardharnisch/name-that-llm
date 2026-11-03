@@ -6,8 +6,8 @@
 
 - `SplitConfig`: source groups, validation fraction `0.2`, and seed `42`.
 - `TokenizerConfig`: BPE vocabulary size `8000` and minimum pair frequency `2`.
-- `TrainingConfig`: encoder, temporary training vocabulary limit `5000`, logistic
-  regression iteration limit `1000`, seed, and optional per-class row limit.
+- `TrainingConfig`: encoder, logistic regression iteration limit `1000`, seed,
+  and optional per-class row limit. BPE settings belong to `TokenizerConfig`.
 - `MLPConfig`: hidden layer sizes `(256,)` and activation `ReLU`.
 
 Paths are separate constants in the same file. Fixed labels remain in
@@ -77,18 +77,19 @@ uv run python scripts/train.py
 
 You can also use `uv run ntl-train` or `uv run python -m name_that_llm.train`.
 
-The pipeline uses the temporary tokenizer in `src/name_that_llm/test_tokenizer.py`,
-the existing bag-of-words encoder, and a logistic regression classifier. The
-tokenizer lowercases text and separates words and punctuation. It learns up to
-5,000 vocabulary entries from training text only, including an unknown-token entry.
-Validation text uses this fixed vocabulary.
+The pipeline uses the BPE tokenizer in `src/name_that_llm/tokenizer.py`, the
+bag-of-words encoder, and a logistic regression classifier. It calls the BPE
+preprocessing step below to create or reuse the saved tokenizer and tokenized
+samples. Features use the saved `input_ids` from the Parquet files without
+repeating tokenization. The tokenizer is fitted on training text only, with
+defaults from `TokenizerConfig`: vocabulary size `8000` and minimum pair frequency `2`.
 
 The script prints row counts, vocabulary size, training accuracy, validation
 accuracy, macro F1, log loss, elapsed time, and per-class precision, recall, and F1.
 It saves these files to `artifacts/simple_train/`:
 
-- `metrics.json`: scores, settings, and the per-class report.
-- `config.json`: the resolved training settings, including CLI overrides.
+- `metrics.json`: scores, settings, tokenizer paths, and the per-class report.
+- `config.json`: resolved tokenizer and training settings, including CLI overrides.
 - `confusion_matrix.png`: validation confusion matrix, normalized by true class.
 - `per_class_f1.png`: validation F1 for each model.
 
@@ -99,9 +100,20 @@ uv run python scripts/train.py --encoder token-indicator --limit-per-class 20 --
 ```
 
 `--limit-per-class` samples at most that many rows per class from each set with
-the selected seed. Use `--train`, `--val`, `--max-vocab`, `--max-iter`, `--seed`,
-and `--output` to change the inputs and run settings. Input CSVs need `text` and
-`model` columns. If both files have `prompt_id`, overlapping prompts are rejected.
+the selected seed after preprocessing. The tokenizer still uses the full training
+split. Use `--data-dir` to select a directory containing `train.csv` and `val.csv`.
+These files need `id`, `prompt_id`, `text`, `model`, and `split` columns and all
+18 labels. Preprocessing rejects overlapping IDs and prompts, and duplicate text.
+
+To change BPE settings and save a separate experiment:
+
+```sh
+uv run ntl-train --vocab-size 4000 --min-frequency 2 --output artifacts/bpe-4000
+```
+
+`--max-vocab` is an alias for `--vocab-size`. Use `--tokenizer-root` and
+`--tokenized-root` to select the cache roots. Use `--max-iter`, `--seed`, and
+`--output` to change the classifier settings and result directory.
 
 ## BPE preprocessing
 

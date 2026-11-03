@@ -24,9 +24,6 @@ class TokenizerConfig:
 @dataclass(frozen=True)
 class TrainingConfig:
     encoder: str = "bag-of-words"
-    max_vocab: int = (
-        5000  # Existing temporary training tokenizer; not the BPE vocabulary.
-    )
     max_iter: int = 1000
     seed: int = DEFAULT_SEED
     limit_per_class: int | None = None
