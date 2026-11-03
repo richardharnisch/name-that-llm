@@ -1,16 +1,21 @@
-from collections import Counter
+from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 import numpy as np
 
 from .tokenizer import Tokenizer
 
 
-class Encoder:
+class Encoder(ABC):
+    @abstractmethod
     def __len__(self) -> int:
         """Dimensionality of the representation space"""
+        pass
 
-    def __call__(self, x: str) -> "np.array":
+    @abstractmethod
+    def __call__(self, x: str) -> np.ndarray:
         """Represent x as a D-dimensional vector of real numbers"""
+        pass
 
 
 class TokenIndicator(Encoder):
@@ -21,9 +26,13 @@ class TokenIndicator(Encoder):
         """Dimensionality of the representation space"""
         return len(self.tokenizer.get_vocab())
 
-    def __call__(self, x: str) -> "np.array":
+    def __call__(self, x: str) -> np.ndarray:
         """Represent x as a D-dimensional vector of real numbers"""
-        unique_token_ids = list(set(self.tokenizer.encode(x).ids))
+        return self.from_ids(self.tokenizer.encode(x).ids)
+
+    def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
+        """Represent saved token IDs without tokenizing the text again."""
+        unique_token_ids = list(set(token_ids))
 
         # A 0 vector with the same length as the vocabulary except in positions corresponding
         # to tokens appearing in the document
@@ -37,14 +46,46 @@ class BagOfWords(Encoder):
         self.tokenizer = tokenizer
 
     def __len__(self) -> int:
-        """Dimensionality of the representation space"""
         return len(self.tokenizer.get_vocab())
 
-    def __call__(self, x: str) -> "np.array":
+    def __call__(self, x: str) -> np.ndarray:
         """Represent x as a D-dimensional vector of real numbers"""
-        token_id_list = list(self.tokenizer.encode(x).ids)
+        return self.from_ids(self.tokenizer.encode(x).ids)
 
+    def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
+        """Represent saved token IDs without tokenizing the text again."""
         vector = np.zeros(len(self))
-        np.add.at(vector, token_id_list, 1)
+        np.add.at(vector, list(token_ids), 1)
 
         return vector
+
+
+class TFIDF(Encoder):
+    def __init__(self, tokenizer: Tokenizer, documents: np.ndarray):
+        self.tokenizer = tokenizer
+        N = len(documents)
+        if N == 0:
+            raise ValueError("TF-IDF requires at least one training document.")
+        df = np.zeros(len(self))
+
+        for document in documents:
+            token_ids = set(tokenizer.encode(document).ids)
+            df[list(token_ids)] += 1
+
+        self.idf = np.log(N / np.maximum(df, 1))
+
+    def __len__(self) -> int:
+        return len(self.tokenizer.get_vocab())
+
+    def __call__(self, x: str) -> np.ndarray:
+        return self.from_ids(self.tokenizer.encode(x).ids)
+
+    def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
+        """Represent saved token IDs without tokenizing the text again."""
+        token_id_list = list(token_ids)
+        tf = np.zeros(len(self))
+        np.add.at(tf, token_id_list, 1)
+        if len(token_id_list) > 0:
+            tf /= len(token_id_list)
+
+        return tf * self.idf

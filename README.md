@@ -4,6 +4,7 @@
 
 ```sh
 uv run python scripts/download_data.py
+uv run python scripts/preprocess_data.py
 ```
 
 This downloads and verifies the public dataset, then creates:
@@ -72,3 +73,56 @@ uv run python scripts/train.py --encoder token-indicator --limit-per-class 20 --
 the selected seed. Use `--train`, `--val`, `--max-vocab`, `--max-iter`, `--seed`,
 and `--output` to change the inputs and run settings. Input CSVs need `text` and
 `model` columns. If both files have `prompt_id`, overlapping prompts are rejected.
+
+## BPE preprocessing
+
+`scripts/preprocess_data.py` reads the existing `data/train.csv` and `data/val.csv`.
+It fits the tokenizer on training text only, then tokenizes both sets once and saves:
+
+```text
+artifacts/tokenizers/bpe-vs-8000-mf-2/tokenizer.json
+data/tokenized/bpe-vs-8000-mf-2/train.parquet
+data/tokenized/bpe-vs-8000-mf-2/val.parquet
+data/tokenized/bpe-vs-8000-mf-2/preprocessing_manifest.json
+```
+
+This follows `../nlp1-student/part1/tutorial.ipynb`: Hugging Face `Tokenizer(BPE(...))`,
+`Metaspace` pretokenization, and `[UNK]`. The default vocabulary size is 8,000,
+with minimum pair frequency 2.
+There is no lowercasing or additional Unicode normalization. Unseen characters map to
+`[UNK]`. Samples are not padded or truncated, and no beginning/end tokens are added.
+
+Vocabulary size remains a hyperparameter to tune later using classifier validation
+accuracy and macro-F1. Compare 1,000, 4,000, 8,000, and 16,000; 8,000 is a starting
+point, not an established optimum.
+
+Each Parquet row retains the source columns and adds `input_ids` (a list of integer
+token IDs) and `label` (the model's index in `name_that_llm.data.LABELS`). The manifest
+records settings, labels, library versions, row counts, and file hashes. Repeat runs
+reuse the saved files if the inputs, settings, library versions, and output hashes match.
+Otherwise, preprocessing rebuilds the generated files. Raw text and split CSV files
+do not change.
+
+To use different settings:
+
+```sh
+uv run ntl-preprocess --vocab-size 4000 --min-frequency 2
+```
+
+The encoders support both the tutorial's text interface and saved token IDs:
+
+```python
+import pandas as pd
+
+from name_that_llm.encodings import BagOfWords, TokenIndicator
+from name_that_llm.tokenizer import Tokenizer
+
+tokenizer = Tokenizer.from_file("artifacts/tokenizers/bpe-vs-8000-mf-2/tokenizer.json")
+train = pd.read_parquet("data/tokenized/bpe-vs-8000-mf-2/train.parquet")
+bow = BagOfWords(tokenizer)
+indicator = TokenIndicator(tokenizer)
+
+features = bow.from_ids(train.iloc[0]["input_ids"])  # No repeated tokenization.
+indicators = indicator.from_ids(train.iloc[0]["input_ids"])
+prediction_features = bow("An unseen passage.")  # The original text interface still works.
+```

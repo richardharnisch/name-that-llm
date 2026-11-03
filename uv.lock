@@ -319,6 +319,7 @@ dependencies = [
     { name = "pyarrow" },
     { name = "scikit-learn" },
     { name = "scipy" },
+    { name = "tokenizers" },
     { name = "torch", version = "2.15.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.15.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
     { name = "transformers" },
@@ -339,6 +340,7 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=18,<24" },
     { name = "scikit-learn", specifier = ">=1.6,<2" },
     { name = "scipy", specifier = ">=1.15,<2" },
+    { name = "tokenizers", specifier = ">=0.22,<0.23" },
     { name = "torch", specifier = ">=2.6,<3", index = "https://download.pytorch.org/whl/cpu" },
     { name = "transformers", specifier = ">=4.51,<5" },
 ]
