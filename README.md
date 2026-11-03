@@ -1,5 +1,33 @@
 # Name That LLM
 
+## Configuration
+
+`src/name_that_llm/config.py` owns the experiment defaults in frozen dataclasses:
+
+- `SplitConfig`: source groups, validation fraction `0.2`, and seed `42`.
+- `TokenizerConfig`: BPE vocabulary size `8000` and minimum pair frequency `2`.
+- `TrainingConfig`: encoder, temporary training vocabulary limit `5000`, logistic
+  regression iteration limit `1000`, seed, and optional per-class row limit.
+- `MLPConfig`: hidden layer sizes `(256,)` and activation `ReLU`.
+
+Paths are separate constants in the same file. Fixed labels remain in
+`name_that_llm.data.LABELS`. Existing CLI flags override the defaults. For a separate
+experiment configuration, use `dataclasses.replace` instead of changing shared state:
+
+```python
+from dataclasses import replace
+
+from name_that_llm.config import DEFAULT_TOKENIZER
+from name_that_llm.preprocess import preprocess_data
+
+config = replace(DEFAULT_TOKENIZER, vocab_size=16000)
+preprocess_data(vocab_size=config.vocab_size, min_frequency=config.min_frequency)
+```
+
+Resolved settings are saved as `data/split_config.json`, `config.json` beside the
+tokenized Parquet files, and `config.json` in each training output directory.
+Split settings are for reproducibility, not parameters to optimize for higher scores.
+
 ## Prepare the data
 
 ```sh
@@ -60,6 +88,7 @@ accuracy, macro F1, log loss, elapsed time, and per-class precision, recall, and
 It saves these files to `artifacts/simple_train/`:
 
 - `metrics.json`: scores, settings, and the per-class report.
+- `config.json`: the resolved training settings, including CLI overrides.
 - `confusion_matrix.png`: validation confusion matrix, normalized by true class.
 - `per_class_f1.png`: validation F1 for each model.
 

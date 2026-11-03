@@ -13,12 +13,13 @@ from pathlib import Path, PurePosixPath
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from name_that_llm.config import DATA_DIR
 from name_that_llm.data import write_data_splits
 
 DATASET = "prvsiyan/prvsiyans-extended-name-that-llm-dataset"
 DATASET_URL = f"https://www.kaggle.com/datasets/{DATASET}"
 DEFAULT_VERSION = 7
-DEFAULT_DATA_DIR = Path(f"data/raw/extended-v{DEFAULT_VERSION}")
+DEFAULT_DATA_DIR = DATA_DIR / "raw" / f"extended-v{DEFAULT_VERSION}"
 REQUIRED_FILES = {"passages.csv", "passages_clean.csv", "README.md"}
 
 
@@ -46,20 +47,28 @@ def extract_archive(archive: Path, destination: Path) -> None:
 def verify_download(destination: Path, version: int) -> dict:
     manifest_path = destination / "download_manifest.json"
     if not manifest_path.is_file():
-        raise ValueError(f"{destination} already exists without a download manifest. Use --output.")
+        raise ValueError(
+            f"{destination} already exists without a download manifest. Use --output."
+        )
     manifest = json.loads(manifest_path.read_text())
     if manifest["dataset"] != DATASET or manifest["version"] != version:
-        raise ValueError("Existing download has a different source or version. Use --output.")
+        raise ValueError(
+            "Existing download has a different source or version. Use --output."
+        )
     files = manifest["files_sha256"]
     if not REQUIRED_FILES.issubset(files):
-        raise ValueError("Download manifest is missing required files. Use a new --output.")
+        raise ValueError(
+            "Download manifest is missing required files. Use a new --output."
+        )
     for name, digest in files.items():
         relative = PurePosixPath(name)
         if relative.is_absolute() or ".." in relative.parts or "\\" in name:
             raise ValueError(f"Unsafe manifest path: {name!r}")
         path = destination / name
         if not path.is_file() or sha256(path) != digest:
-            raise ValueError(f"Missing or modified downloaded file: {path}. Use a new --output.")
+            raise ValueError(
+                f"Missing or modified downloaded file: {path}. Use a new --output."
+            )
     return manifest
 
 
@@ -70,12 +79,12 @@ def download_dataset(destination: Path, version: int = DEFAULT_VERSION) -> dict:
         return verify_download(destination, version)
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    url = (
-        f"https://www.kaggle.com/api/v1/datasets/download/{DATASET}?datasetVersionNumber={version}"
-    )
+    url = f"https://www.kaggle.com/api/v1/datasets/download/{DATASET}?datasetVersionNumber={version}"
     # This public endpoint requires no token, cookies, or local credential files.
     request = Request(url, headers={"User-Agent": "name-that-llm-baseline/0.1"})
-    with tempfile.TemporaryDirectory(prefix=".extended-", dir=destination.parent) as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix=".extended-", dir=destination.parent
+    ) as temporary:
         temporary = Path(temporary)
         archive = temporary / "dataset.zip"
         with urlopen(request, timeout=120) as response, archive.open("wb") as target:
@@ -86,12 +95,20 @@ def download_dataset(destination: Path, version: int = DEFAULT_VERSION) -> dict:
             )
         payload = temporary / "payload"
         extract_archive(archive, payload)
-        missing = REQUIRED_FILES - {path.name for path in payload.iterdir() if path.is_file()}
+        missing = REQUIRED_FILES - {
+            path.name for path in payload.iterdir() if path.is_file()
+        }
         if missing:
-            raise ValueError(f"Expanded dataset is missing required files: {sorted(missing)}")
-        with (payload / "passages_clean.csv").open(newline="", encoding="utf-8") as stream:
+            raise ValueError(
+                f"Expanded dataset is missing required files: {sorted(missing)}"
+            )
+        with (payload / "passages_clean.csv").open(
+            newline="", encoding="utf-8"
+        ) as stream:
             reader = csv.DictReader(stream)
-            if not {"text", "model", "prompt_id", "split"}.issubset(reader.fieldnames or []):
+            if not {"text", "model", "prompt_id", "split"}.issubset(
+                reader.fieldnames or []
+            ):
                 raise ValueError("Unexpected expanded-dataset CSV schema.")
             clean_rows = sum(1 for _ in reader)
         if not clean_rows:
@@ -110,7 +127,9 @@ def download_dataset(destination: Path, version: int = DEFAULT_VERSION) -> dict:
                 if path.is_file()
             },
         }
-        (payload / "download_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        (payload / "download_manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n"
+        )
         payload.rename(destination)
     return manifest
 
@@ -120,18 +139,32 @@ def main() -> None:
     parser.add_argument(
         "--version", type=int, default=DEFAULT_VERSION, help="Kaggle dataset version"
     )
-    parser.add_argument("--output", type=Path, help="Default: data/raw/extended-v<VERSION>")
     parser.add_argument(
-        "--split-output", type=Path, default=Path("data"), help="Train/validation CSV directory"
+        "--output", type=Path, help="Default: data/raw/extended-v<VERSION>"
+    )
+    parser.add_argument(
+        "--split-output",
+        type=Path,
+        default=DATA_DIR,
+        help="Train/validation CSV directory",
     )
     args = parser.parse_args()
-    output = args.output or Path(f"data/raw/extended-v{args.version}")
+    output = args.output or DATA_DIR / "raw" / f"extended-v{args.version}"
     try:
         manifest = download_dataset(output, args.version)
         train, val = write_data_splits(output, args.split_output)
     except HTTPError as error:
-        parser.exit(1, f"Kaggle download failed (HTTP {error.code}). Check {DATASET_URL}\n")
-    except (URLError, TimeoutError, OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
+        parser.exit(
+            1, f"Kaggle download failed (HTTP {error.code}). Check {DATASET_URL}\n"
+        )
+    except (
+        URLError,
+        TimeoutError,
+        OSError,
+        ValueError,
+        KeyError,
+        zipfile.BadZipFile,
+    ) as error:
         parser.exit(1, f"Download failed: {error}\n")
     print(f"Verified {DATASET}, version {manifest['version']}: {output}")
     print(f"Clean passages before baseline split filtering: {manifest['clean_rows']:,}")

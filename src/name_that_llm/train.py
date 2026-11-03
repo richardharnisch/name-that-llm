@@ -20,9 +20,15 @@ from sklearn.metrics import (
     log_loss,
 )
 
-from name_that_llm.data import DEFAULT_SEED, validate_columns
+from name_that_llm.config import (
+    DATA_DIR,
+    DEFAULT_TRAINING,
+    TRAIN_OUTPUT_DIR,
+    TrainingConfig,
+    save_config,
+)
+from name_that_llm.data import validate_columns
 from name_that_llm.encodings import BagOfWords, Encoder, TokenIndicator
-from name_that_llm.test_tokenizer import Tokenizer
 
 
 def encode_texts(texts: pd.Series, encoder: Encoder) -> csr_matrix:
@@ -58,6 +64,13 @@ def save_plots(labels, predictions, classes, report: dict, output: Path) -> None
 
 def run(args: argparse.Namespace) -> None:
     start = perf_counter()
+    config = TrainingConfig(
+        encoder=args.encoder,
+        max_vocab=args.max_vocab,
+        max_iter=args.max_iter,
+        seed=args.seed,
+        limit_per_class=args.limit_per_class,
+    )
     train = pd.read_csv(args.train, dtype=str, keep_default_na=False)
     val = pd.read_csv(args.val, dtype=str, keep_default_na=False)
     for frame in (train, val):
@@ -80,7 +93,11 @@ def run(args: argparse.Namespace) -> None:
 
     print(f"Train: {len(train):,} rows; validation: {len(val):,} rows", flush=True)
     tokenizer = Tokenizer(max_vocab=args.max_vocab).fit(train["text"])
-    encoder = BagOfWords(tokenizer) if args.encoder == "bag-of-words" else TokenIndicator(tokenizer)
+    encoder = (
+        BagOfWords(tokenizer)
+        if args.encoder == "bag-of-words"
+        else TokenIndicator(tokenizer)
+    )
     print(f"Encoder: {args.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
     x_train = encode_texts(train["text"], encoder)
     x_val = encode_texts(val["text"], encoder)
@@ -90,7 +107,11 @@ def run(args: argparse.Namespace) -> None:
     classifier.fit(x_train, train["model"])
     predictions = classifier.predict(x_val)
     report = classification_report(
-        val["model"], predictions, labels=classifier.classes_, output_dict=True, zero_division=0
+        val["model"],
+        predictions,
+        labels=classifier.classes_,
+        output_dict=True,
+        zero_division=0,
     )
     metrics = {
         "encoder": args.encoder,
@@ -122,26 +143,35 @@ def run(args: argparse.Namespace) -> None:
     print(classification_report(val["model"], predictions, digits=3, zero_division=0))
 
     args.output.mkdir(parents=True, exist_ok=True)
+    save_config(args.output / "config.json", training=config)
     (args.output / "metrics.json").write_text(
         json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
     )
     save_plots(val["model"], predictions, classifier.classes_, report, args.output)
-    print(f"Saved metrics.json, confusion_matrix.png, and per_class_f1.png to {args.output}")
+    print(
+        "Saved config.json, metrics.json, confusion_matrix.png, "
+        f"and per_class_f1.png to {args.output}"
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--train", type=Path, default=Path("data/train.csv"))
-    parser.add_argument("--val", type=Path, default=Path("data/val.csv"))
-    parser.add_argument("--output", type=Path, default=Path("artifacts/simple_train"))
+    parser.add_argument("--train", type=Path, default=DATA_DIR / "train.csv")
+    parser.add_argument("--val", type=Path, default=DATA_DIR / "val.csv")
+    parser.add_argument("--output", type=Path, default=TRAIN_OUTPUT_DIR)
     parser.add_argument(
-        "--encoder", choices=("bag-of-words", "token-indicator"), default="bag-of-words"
+        "--encoder",
+        choices=("bag-of-words", "token-indicator"),
+        default=DEFAULT_TRAINING.encoder,
     )
-    parser.add_argument("--max-vocab", type=int, default=5000)
-    parser.add_argument("--max-iter", type=int, default=1000)
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument("--max-vocab", type=int, default=DEFAULT_TRAINING.max_vocab)
+    parser.add_argument("--max-iter", type=int, default=DEFAULT_TRAINING.max_iter)
+    parser.add_argument("--seed", type=int, default=DEFAULT_TRAINING.seed)
     parser.add_argument(
-        "--limit-per-class", type=int, help="Cap rows per class in each set for a quick run"
+        "--limit-per-class",
+        type=int,
+        default=DEFAULT_TRAINING.limit_per_class,
+        help="Cap rows per class in each set for a quick run",
     )
     args = parser.parse_args()
     if args.max_vocab < 2 or args.max_iter < 1:

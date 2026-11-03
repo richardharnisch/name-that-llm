@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+from dataclasses import asdict
 from importlib.metadata import version
 from pathlib import Path
 
@@ -10,14 +11,15 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from name_that_llm.data import LABELS, validate_columns
-from name_that_llm.tokenizer import (
-    DEFAULT_MIN_FREQUENCY,
-    DEFAULT_VOCAB_SIZE,
-    UNK_TOKEN,
-    Tokenizer,
-    train_tokenizer,
+from name_that_llm.config import (
+    DATA_DIR,
+    DEFAULT_TOKENIZER,
+    TOKENIZER_ROOT,
+    TokenizerConfig,
+    save_config,
 )
+from name_that_llm.data import LABELS, validate_columns
+from name_that_llm.tokenizer import UNK_TOKEN, Tokenizer, train_tokenizer
 
 COLUMNS = ("id", "prompt_id", "text", "model", "split")
 
@@ -33,14 +35,20 @@ def _load_splits(paths: dict[str, Path]) -> dict[str, pd.DataFrame]:
         frame = pd.read_csv(path, dtype=str, keep_default_na=False)
         validate_columns(frame, COLUMNS)
         if set(frame["model"]) != set(LABELS):
-            raise ValueError(f"{path} must contain all 18 model labels and no unknown labels.")
-        frames[name] = frame.loc[:, list(COLUMNS)].sort_values("id").reset_index(drop=True)
+            raise ValueError(
+                f"{path} must contain all 18 model labels and no unknown labels."
+            )
+        frames[name] = (
+            frame.loc[:, list(COLUMNS)].sort_values("id").reset_index(drop=True)
+        )
     for column in ("id", "prompt_id"):
         if set(frames["train"][column]) & set(frames["val"][column]):
             raise ValueError(f"Training and validation share values in {column!r}.")
     texts = pd.concat([frame["text"] for frame in frames.values()], ignore_index=True)
     if texts.str.split().str.join(" ").duplicated().any():
-        raise ValueError("Duplicate passage text could leak across splits. Check the dataset.")
+        raise ValueError(
+            "Duplicate passage text could leak across splits. Check the dataset."
+        )
     return frames
 
 
@@ -60,32 +68,39 @@ def _write_samples(frame: pd.DataFrame, tokenizer: Tokenizer, path: Path) -> Non
 
 
 def preprocess_data(
-    directory: Path = Path("data"),
-    tokenizer_root: Path = Path("artifacts/tokenizers"),
+    directory: Path = DATA_DIR,
+    tokenizer_root: Path = TOKENIZER_ROOT,
     output: Path | None = None,
-    vocab_size: int = DEFAULT_VOCAB_SIZE,
-    min_frequency: int = DEFAULT_MIN_FREQUENCY,
+    vocab_size: int = DEFAULT_TOKENIZER.vocab_size,
+    min_frequency: int = DEFAULT_TOKENIZER.min_frequency,
 ) -> tuple[Path, Path, bool]:
     """Return the tokenizer path, sample directory, and whether saved files were reused."""
     if vocab_size < 2 or min_frequency < 1:
         raise ValueError(
             "Vocabulary size must be at least 2 and minimum frequency must be positive."
         )
+    config = TokenizerConfig(vocab_size=vocab_size, min_frequency=min_frequency)
     sources = {name: directory / f"{name}.csv" for name in ("train", "val")}
     for path in sources.values():
         if not path.is_file():
-            raise ValueError(f"Missing {path}. Run `uv run python scripts/download_data.py` first.")
+            raise ValueError(
+                f"Missing {path}. Run `uv run python scripts/download_data.py` first."
+            )
     name = f"bpe-vs-{vocab_size}-mf-{min_frequency}"
     tokenizer_path = tokenizer_root / name / "tokenizer.json"
-    sample_directory = (output if output is not None else directory / "tokenized") / name
+    sample_directory = (
+        output if output is not None else directory / "tokenized"
+    ) / name
     outputs = {
         "tokenizer.json": tokenizer_path,
-        **{f"{split}.parquet": sample_directory / f"{split}.parquet" for split in sources},
+        **{
+            f"{split}.parquet": sample_directory / f"{split}.parquet"
+            for split in sources
+        },
     }
     spec = {
         "format_version": 1,
-        "vocab_size": vocab_size,
-        "min_frequency": min_frequency,
+        **asdict(config),
         "pre_tokenizer": "Metaspace",
         "unk_token": UNK_TOKEN,
         "labels": list(LABELS),
@@ -103,6 +118,7 @@ def preprocess_data(
             if all(path.is_file() for path in outputs.values()):
                 hashes = {name: _sha256(path) for name, path in outputs.items()}
                 if manifest.get("files_sha256") == hashes:
+                    save_config(sample_directory / "config.json", tokenizer=config)
                     return tokenizer_path, sample_directory, True
 
     frames = _load_splits(sources)
@@ -119,22 +135,31 @@ def preprocess_data(
         "files_sha256": {name: _sha256(path) for name, path in outputs.items()},
     }
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    save_config(sample_directory / "config.json", tokenizer=config)
     return tokenizer_path, sample_directory, False
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-dir", type=Path, default=Path("data"))
-    parser.add_argument("--tokenizer-root", type=Path, default=Path("artifacts/tokenizers"))
+    parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
+    parser.add_argument("--tokenizer-root", type=Path, default=TOKENIZER_ROOT)
     parser.add_argument(
-        "--output", type=Path, help="Tokenized data root (default: <data-dir>/tokenized)"
+        "--output",
+        type=Path,
+        help="Tokenized data root (default: <data-dir>/tokenized)",
     )
-    parser.add_argument("--vocab-size", type=int, default=DEFAULT_VOCAB_SIZE)
-    parser.add_argument("--min-frequency", type=int, default=DEFAULT_MIN_FREQUENCY)
+    parser.add_argument("--vocab-size", type=int, default=DEFAULT_TOKENIZER.vocab_size)
+    parser.add_argument(
+        "--min-frequency", type=int, default=DEFAULT_TOKENIZER.min_frequency
+    )
     args = parser.parse_args()
     try:
         tokenizer_path, sample_directory, reused = preprocess_data(
-            args.data_dir, args.tokenizer_root, args.output, args.vocab_size, args.min_frequency
+            args.data_dir,
+            args.tokenizer_root,
+            args.output,
+            args.vocab_size,
+            args.min_frequency,
         )
     except (OSError, ValueError) as error:
         parser.exit(1, f"Preprocessing failed: {error}\n")

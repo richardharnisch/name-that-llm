@@ -8,8 +8,10 @@ from tokenizers.models import BPE
 from tokenizers.pre_tokenizers import Metaspace
 from tokenizers.trainers import BpeTrainer
 
-DEFAULT_VOCAB_SIZE = 8000
-DEFAULT_MIN_FREQUENCY = 2
+from name_that_llm.config import DEFAULT_TOKENIZER
+
+DEFAULT_VOCAB_SIZE = DEFAULT_TOKENIZER.vocab_size
+DEFAULT_MIN_FREQUENCY = DEFAULT_TOKENIZER.min_frequency
 UNK_TOKEN = "[UNK]"
 
 
