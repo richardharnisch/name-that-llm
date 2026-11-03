@@ -37,3 +37,38 @@ To change the validation fraction or seed:
 ```sh
 uv run ntl-split --val-size 0.2 --seed 42
 ```
+
+## Run a simple training experiment
+
+From the project root, after preparing the data:
+
+```sh
+uv run python scripts/train.py
+```
+
+You can also use `uv run ntl-train` or `uv run python -m name_that_llm.train`.
+
+The pipeline uses the temporary tokenizer in `src/name_that_llm/test_tokenizer.py`,
+the existing bag-of-words encoder, and a logistic regression classifier. The
+tokenizer lowercases text and separates words and punctuation. It learns up to
+5,000 vocabulary entries from training text only, including an unknown-token entry.
+Validation text uses this fixed vocabulary.
+
+The script prints row counts, vocabulary size, training accuracy, validation
+accuracy, macro F1, log loss, elapsed time, and per-class precision, recall, and F1.
+It saves these files to `artifacts/simple_train/`:
+
+- `metrics.json`: scores, settings, and the per-class report.
+- `confusion_matrix.png`: validation confusion matrix, normalized by true class.
+- `per_class_f1.png`: validation F1 for each model.
+
+For a quick check with the token-indicator encoder:
+
+```sh
+uv run python scripts/train.py --encoder token-indicator --limit-per-class 20 --output artifacts/quick
+```
+
+`--limit-per-class` samples at most that many rows per class from each set with
+the selected seed. Use `--train`, `--val`, `--max-vocab`, `--max-iter`, `--seed`,
+and `--output` to change the inputs and run settings. Input CSVs need `text` and
+`model` columns. If both files have `prompt_id`, overlapping prompts are rejected.
