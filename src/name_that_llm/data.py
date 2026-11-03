@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import pandas as pd
+from sklearn.model_selection import GroupShuffleSplit
 
 LABELS = (
     "claude-fable-5",
@@ -27,6 +28,8 @@ LABELS = (
 # Do not mix reconstructed competition prompts into validation. The pilot uses
 # a different generation protocol; the Kimi-only rerun is not a balanced block.
 DEFAULT_SPLITS = ("new", "new2", "proxy_v1")
+DEFAULT_VAL_SIZE = 0.2
+DEFAULT_SEED = 42
 
 
 def validate_columns(frame: pd.DataFrame, columns: tuple[str, ...]) -> None:
@@ -43,6 +46,7 @@ def validate_columns(frame: pd.DataFrame, columns: tuple[str, ...]) -> None:
 
 
 def load_training_data(directory: Path, splits: tuple[str, ...] = DEFAULT_SPLITS) -> pd.DataFrame:
+    """Load eligible source rows before the train/validation split."""
     path = directory / "passages_clean.csv"
     if not path.is_file():
         raise ValueError(f"Missing {path}. Run `uv run python scripts/download_data.py` first.")
@@ -63,6 +67,46 @@ def load_training_data(directory: Path, splits: tuple[str, ...] = DEFAULT_SPLITS
     if normalised.duplicated().any():
         raise ValueError("Duplicate passage text could leak across folds. Check the dataset.")
     return frame
+
+
+def split_training_data(
+    frame: pd.DataFrame,
+    val_size: float = DEFAULT_VAL_SIZE,
+    seed: int = DEFAULT_SEED,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split whole prompts, with stable membership and row order for the same input."""
+    validate_columns(frame, ("id", "prompt_id", "text", "model", "split"))
+    if not 0 < val_size < 1:
+        raise ValueError("Validation size must be between 0 and 1 (exclusive).")
+    if frame["prompt_id"].nunique() < 2:
+        raise ValueError("At least two distinct prompts are needed for train/validation splitting.")
+    # A fixed seed alone does not guarantee stable CSV row order.
+    frame = frame.sort_values("id").reset_index(drop=True)
+    splitter = GroupShuffleSplit(n_splits=1, test_size=val_size, random_state=seed)
+    train_indices, val_indices = next(splitter.split(frame, groups=frame["prompt_id"]))
+    train = frame.iloc[train_indices].reset_index(drop=True)
+    val = frame.iloc[val_indices].reset_index(drop=True)
+    labels = set(frame["model"])
+    if set(train["model"]) != labels or set(val["model"]) != labels:
+        raise ValueError(
+            "Both train and validation must contain every model. "
+            "Use more prompts or change --val-size or --seed."
+        )
+    return train, val
+
+
+def write_data_splits(
+    directory: Path,
+    output: Path,
+    val_size: float = DEFAULT_VAL_SIZE,
+    seed: int = DEFAULT_SEED,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Write train.csv and val.csv without changing the downloaded source files."""
+    train, val = split_training_data(load_training_data(directory), val_size, seed)
+    output.mkdir(parents=True, exist_ok=True)
+    for name, subset in (("train", train), ("val", val)):
+        subset.to_csv(output / f"{name}.csv", index=False, encoding="utf-8", lineterminator="\n")
+    return train, val
 
 
 def load_test_data(path: Path) -> pd.DataFrame:

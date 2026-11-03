@@ -1,4 +1,4 @@
-"""Download the public forum dataset without accessing Kaggle credentials."""
+"""Download the public forum dataset and create deterministic train/validation files."""
 
 import argparse
 import csv
@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from name_that_llm.data import write_data_splits
 
 DATASET = "prvsiyan/prvsiyans-extended-name-that-llm-dataset"
 DATASET_URL = f"https://www.kaggle.com/datasets/{DATASET}"
@@ -119,16 +121,22 @@ def main() -> None:
         "--version", type=int, default=DEFAULT_VERSION, help="Kaggle dataset version"
     )
     parser.add_argument("--output", type=Path, help="Default: data/raw/extended-v<VERSION>")
+    parser.add_argument(
+        "--split-output", type=Path, default=Path("data"), help="Train/validation CSV directory"
+    )
     args = parser.parse_args()
     output = args.output or Path(f"data/raw/extended-v{args.version}")
     try:
         manifest = download_dataset(output, args.version)
+        train, val = write_data_splits(output, args.split_output)
     except HTTPError as error:
         parser.exit(1, f"Kaggle download failed (HTTP {error.code}). Check {DATASET_URL}\n")
     except (URLError, TimeoutError, OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
         parser.exit(1, f"Download failed: {error}\n")
     print(f"Verified {DATASET}, version {manifest['version']}: {output}")
     print(f"Clean passages before baseline split filtering: {manifest['clean_rows']:,}")
+    print(f"Train: {len(train):,} rows -> {args.split_output / 'train.csv'}")
+    print(f"Validation: {len(val):,} rows -> {args.split_output / 'val.csv'}")
 
 
 if __name__ == "__main__":
