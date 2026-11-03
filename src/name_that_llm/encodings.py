@@ -1,4 +1,4 @@
-from collections import Counter
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -9,7 +9,7 @@ class Encoder:
     def __len__(self) -> int:
         """Dimensionality of the representation space"""
 
-    def __call__(self, x: str) -> "np.array":
+    def __call__(self, x: str) -> np.ndarray:
         """Represent x as a D-dimensional vector of real numbers"""
 
 
@@ -21,9 +21,13 @@ class TokenIndicator(Encoder):
         """Dimensionality of the representation space"""
         return len(self.tokenizer.get_vocab())
 
-    def __call__(self, x: str) -> "np.array":
+    def __call__(self, x: str) -> np.ndarray:
         """Represent x as a D-dimensional vector of real numbers"""
-        unique_token_ids = list(set(self.tokenizer.encode(x).ids))
+        return self.from_ids(self.tokenizer.encode(x).ids)
+
+    def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
+        """Represent saved token IDs without tokenizing the text again."""
+        unique_token_ids = list(set(token_ids))
 
         # A 0 vector with the same length as the vocabulary except in positions corresponding
         # to tokens appearing in the document
@@ -40,11 +44,13 @@ class BagOfWords(Encoder):
         """Dimensionality of the representation space"""
         return len(self.tokenizer.get_vocab())
 
-    def __call__(self, x: str) -> "np.array":
+    def __call__(self, x: str) -> np.ndarray:
         """Represent x as a D-dimensional vector of real numbers"""
-        token_id_list = list(self.tokenizer.encode(x).ids)
+        return self.from_ids(self.tokenizer.encode(x).ids)
 
+    def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
+        """Represent saved token IDs without tokenizing the text again."""
         vector = np.zeros(len(self))
-        np.add.at(vector, token_id_list, 1)
+        np.add.at(vector, list(token_ids), 1)
 
         return vector

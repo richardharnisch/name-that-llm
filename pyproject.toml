@@ -10,6 +10,7 @@ dependencies = [
     "pandas>=2.2,<3",
     "pyarrow>=18,<24",
     "scikit-learn>=1.6,<2",
+    "tokenizers>=0.22,<0.23",
     "torch>=2.6,<3",
     "transformers>=4.51,<5",
 ]
@@ -20,6 +21,7 @@ dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
 [project.scripts]
 ntl-download = "name_that_llm.download:main"
 ntl-split = "name_that_llm.split:main"
+ntl-preprocess = "name_that_llm.preprocess:main"
 ntl-train = "name_that_llm.baseline:train_main"
 ntl-predict = "name_that_llm.baseline:predict_main"
 
