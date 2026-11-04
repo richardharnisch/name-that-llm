@@ -74,6 +74,17 @@ class TFIDF(Encoder):
 
         self.idf = np.log(N / np.maximum(df, 1))
 
+    @classmethod
+    def from_idf(cls, tokenizer: Tokenizer, idf: np.ndarray) -> "TFIDF":
+        """Rebuild an encoder from saved IDF weights, without the training texts."""
+        idf = np.asarray(idf, dtype=np.float64)
+        encoder = cls.__new__(cls)
+        encoder.tokenizer = tokenizer
+        if idf.shape != (len(encoder),):
+            raise ValueError(f"Expected {len(encoder)} IDF weights, got shape {idf.shape}.")
+        encoder.idf = idf
+        return encoder
+
     def __len__(self) -> int:
         return len(self.tokenizer.get_vocab())
 
