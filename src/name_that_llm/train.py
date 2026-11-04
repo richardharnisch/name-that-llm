@@ -40,7 +40,7 @@ from name_that_llm.encodings import TFIDF, BagOfWords, Encoder, TokenIndicator
 from name_that_llm.preprocess import preprocess_data
 from name_that_llm.tokenizer import Tokenizer
 
-MODELS = ("log-linear", "mlp")
+MODELS = ("log-linear", "mlp", "svm")
 ENCODERS = ("bag-of-words", "token-indicator", "tf-idf")
 
 
@@ -72,9 +72,15 @@ def encode_samples(input_ids: pd.Series, encoder: Encoder) -> torch.Tensor:
 def build_model(
     config: TrainingConfig, mlp_config: MLPConfig, d_in: int, n_classes: int
 ) -> nn.Module:
-    if config.model == "log-linear":
+    if config.model in ("log-linear", "svm"):
+        # A linear SVM is the same linear layer as log-linear, trained with a hinge loss.
         return LogLinear(d_in, n_classes)
     return MLP(d_in, n_classes, hidden=mlp_config.hidden, act=getattr(nn, mlp_config.activation))
+
+
+def build_loss(config: TrainingConfig) -> nn.Module:
+    """Multi-class hinge loss for the SVM; cross-entropy for the probabilistic models."""
+    return nn.MultiMarginLoss() if config.model == "svm" else nn.CrossEntropyLoss()
 
 
 @torch.no_grad()
@@ -95,7 +101,7 @@ def fit(
     optimizer = torch.optim.Adam(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
-    loss_function = nn.CrossEntropyLoss()
+    loss_function = build_loss(config)
     generator = torch.Generator().manual_seed(config.seed)
     history = []
     for epoch in range(1, config.epochs + 1):
@@ -196,7 +202,9 @@ def save_learning_curves(history: list[dict], output: Path) -> None:
     figure, (loss_axis, score_axis) = plt.subplots(1, 2, figsize=(12, 4))
     loss_axis.plot(epochs, [entry["train_loss"] for entry in history], label="train")
     loss_axis.plot(epochs, [entry["validation_loss"] for entry in history], label="validation")
-    loss_axis.set(xlabel="Epoch", ylabel="Cross-entropy loss", title="Loss")
+    loss_axis.set(
+        xlabel="Epoch", ylabel="Training loss (hinge for SVM, else cross-entropy)", title="Loss"
+    )
     loss_axis.legend()
     score_axis.plot(epochs, [entry["validation_accuracy"] for entry in history], label="accuracy")
     score_axis.plot(epochs, [entry["validation_macro_f1"] for entry in history], label="macro F1")
@@ -286,9 +294,10 @@ def run(args: argparse.Namespace) -> None:
         "train_accuracy": accuracy_score(y_train.numpy(), train_logits.argmax(dim=1).numpy()),
         "validation_accuracy": accuracy_score(y_val.numpy(), val_predictions),
         "validation_macro_f1": f1_score(y_val.numpy(), val_predictions, average="macro"),
-        "validation_log_loss": log_loss(
-            y_val.numpy(), torch.softmax(val_logits, dim=1).numpy(), labels=class_ids
-        ),
+        # SVM scores are not probabilities, so log loss is undefined for it.
+        "validation_log_loss": None
+        if config.model == "svm"
+        else log_loss(y_val.numpy(), torch.softmax(val_logits, dim=1).numpy(), labels=class_ids),
         "elapsed_seconds": perf_counter() - start,
         "history": history,
         "classification_report": report,
@@ -299,7 +308,8 @@ def run(args: argparse.Namespace) -> None:
         "validation_macro_f1",
         "validation_log_loss",
     ):
-        print(f"{name}: {metrics[name]:.4f}")
+        if metrics[name] is not None:
+            print(f"{name}: {metrics[name]:.4f}")
     print(f"Training and evaluation: {metrics['elapsed_seconds']:.1f} seconds")
     print("\nValidation classification report:")
     print(

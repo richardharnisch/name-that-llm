@@ -23,7 +23,7 @@ class TokenizerConfig:
 
 @dataclass(frozen=True)
 class TrainingConfig:
-    model: str = "log-linear"  # "log-linear" or "mlp"
+    model: str = "log-linear"  # "log-linear", "mlp" or "svm"
     encoder: str = "bag-of-words"
     epochs: int = 20
     batch_size: int = 64
