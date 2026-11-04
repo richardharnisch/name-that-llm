@@ -25,7 +25,12 @@ class TokenizerConfig:
 class TrainingConfig:
     model: str = "log-linear"  # "log-linear", "mlp" or "svm"
     encoder: str = "bag-of-words"
-    epochs: int = 20
+    normalize: bool = True  # Scale each document vector to unit L2 norm.
+    # Train until the training loss stops improving, or until max_epochs. The validation
+    # data never decides when to stop. Set tol to 0 to always train for max_epochs.
+    max_epochs: int = 200
+    tol: float = 1e-3  # A new best training loss must beat the old best by this fraction.
+    patience: int = 10  # Epochs without a new best that count as converged.
     batch_size: int = 64
     learning_rate: float = 1e-3
     weight_decay: float = 1e-4

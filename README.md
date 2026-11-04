@@ -7,8 +7,10 @@
 - `SplitConfig`: source groups, number of cross-validation folds `5`, and seed `42`.
 - `TokenizerConfig`: BPE vocabulary size `8000` and minimum pair frequency `2`.
 - `TrainingConfig`: model (`log-linear`, `mlp`, or `svm`), encoder (`bag-of-words`,
-  `token-indicator`, or `tf-idf`), epochs, batch size, learning rate, weight decay, seed,
-  and optional per-class row limit. BPE settings belong to `TokenizerConfig`.
+  `token-indicator`, or `tf-idf`), L2 normalization of the document vectors, the
+  convergence rule (`max_epochs`, `tol`, `patience`), batch size, learning rate,
+  weight decay, seed, and optional per-class row limit. BPE settings belong to
+  `TokenizerConfig`.
 - `MLPConfig`: hidden layer sizes `(256,)` and activation `ReLU`.
 
 Paths are separate constants in the same file. Fixed labels remain in
@@ -98,16 +100,32 @@ Its scores are not probabilities, so its log loss is not reported.
 For each fold, the command prepares or reuses the BPE tokenizer and tokenized samples, builds
 the features from the saved `input_ids` without tokenizing again, trains a new model on the
 training set of the fold, and evaluates it on the validation set of the fold. The tokenizer
-and the TF-IDF weights are fitted on the training set of the fold only. The model of the last
-epoch is kept. The script does not select a model by its validation score.
+and the TF-IDF weights are fitted on the training set of the fold only.
+
+**Feature scale.** By default, each document vector is scaled to unit L2 norm
+(`--normalize`; use `--no-normalize` to turn it off). The three encoders produce vectors
+with very different sizes (bag-of-words about 50 times larger than TF-IDF), so one learning
+rate cannot suit all of them without this step. The scaling has no fitted parameters.
+Document length carries almost no label information in this dataset: the model label
+explains less than 1% of the variation in token count.
+
+**Convergence.** Training stops when the training loss has not beaten its best value so far
+by at least the fraction `--tol` (default `0.001`) for `--patience` epochs (default `10`), or
+at `--max-epochs` (default `200`; `--epochs` is an alias). The comparison is with the best
+loss, not with the previous epoch, because the loss of each epoch is noisy (about 2% for the
+MLP once it plateaus). Use `--tol 0` to always train for `--max-epochs`. The validation data is evaluated each epoch for the learning curves only, and
+never decides when to stop. The model of the last epoch is kept. Every run records whether it
+converged. A run that hits the epoch cap did not converge, and its score is not comparable
+with converged runs.
 
 The script prints the scores of each fold and then the mean and sample standard deviation
 over the folds for training accuracy, validation accuracy, macro F1, and log loss. The folds
 share training data, so the standard deviation is a rough guide only. It saves these files to
 `artifacts/simple_train/`:
 
-- `cv_metrics.json`: scores of each fold, their mean and standard deviation, and the
-  per-class report of the pooled out-of-fold predictions.
+- `cv_metrics.json`: scores of each fold, their mean and standard deviation, the epochs run
+  and the converged flag of each fold, and the per-class report of the pooled out-of-fold
+  predictions.
 - `config.json`: resolved tokenizer and training settings, including CLI overrides.
 - `confusion_matrix.png` and `per_class_f1.png`: made from the pooled out-of-fold
   predictions. Each passage is predicted once, by the model that did not train on it.
@@ -132,9 +150,11 @@ uv run ntl-train --vocab-size 4000 --min-frequency 2 --output artifacts/bpe-4000
 
 Use `--tokenizer-root` and `--tokenized-root` to select the cache roots, and `--data-dir`
 to select the directory that contains `folds.csv`. That file needs `id`, `prompt_id`,
-`text`, `model`, `split`, and `fold` columns, and all 18 labels. Use `--epochs`,
+`text`, `model`, `split`, and `fold` columns, and all 18 labels. Use `--max-epochs`,
 `--batch-size`, `--learning-rate`, `--weight-decay`, `--hidden`, `--seed`, and `--output`
-to change the model settings and result directory.
+to change the model settings and result directory. A saved `model.pt` records whether the
+features were normalized and, for TF-IDF, the IDF weights, so a reloaded model builds the
+same features. Checkpoints saved before this option existed load as not normalized.
 
 ## BPE preprocessing
 

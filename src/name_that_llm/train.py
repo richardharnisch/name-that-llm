@@ -36,7 +36,7 @@ from name_that_llm.config import (
     save_config,
 )
 from name_that_llm.data import LABELS, load_folds
-from name_that_llm.encodings import TFIDF, BagOfWords, Encoder, TokenIndicator
+from name_that_llm.encodings import TFIDF, BagOfWords, Encoder, L2Normalized, TokenIndicator
 from name_that_llm.preprocess import preprocess_data
 from name_that_llm.tokenizer import Tokenizer
 
@@ -44,21 +44,26 @@ MODELS = ("log-linear", "mlp", "svm")
 ENCODERS = ("bag-of-words", "token-indicator", "tf-idf")
 
 
-def build_encoder(name: str, tokenizer: Tokenizer, train_texts: pd.Series) -> Encoder:
+def build_encoder(
+    name: str, tokenizer: Tokenizer, train_texts: pd.Series, normalize: bool = False
+) -> Encoder:
     """Create an encoder. TF-IDF weights come from training texts only."""
     if name == "bag-of-words":
-        return BagOfWords(tokenizer)
-    if name == "token-indicator":
-        return TokenIndicator(tokenizer)
-    return TFIDF(tokenizer, train_texts.to_numpy())
+        encoder = BagOfWords(tokenizer)
+    elif name == "token-indicator":
+        encoder = TokenIndicator(tokenizer)
+    else:
+        encoder = TFIDF(tokenizer, train_texts.to_numpy())
+    return L2Normalized(encoder) if normalize else encoder
 
 
 def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> Encoder:
     """Rebuild the encoder a saved model was trained with."""
     name = checkpoint["encoder"]
     if name == "tf-idf":
-        return TFIDF.from_idf(tokenizer, checkpoint["idf"].numpy())
-    return build_encoder(name, tokenizer, pd.Series(dtype=str))
+        encoder = TFIDF.from_idf(tokenizer, checkpoint["idf"].numpy())
+        return L2Normalized(encoder) if checkpoint.get("normalize", False) else encoder
+    return build_encoder(name, tokenizer, pd.Series(dtype=str), checkpoint.get("normalize", False))
 
 
 def encode_samples(input_ids: pd.Series, encoder: Encoder) -> torch.Tensor:
@@ -96,15 +101,22 @@ def fit(
     x_val: torch.Tensor,
     y_val: torch.Tensor,
     config: TrainingConfig,
-) -> list[dict]:
-    """Train for a fixed number of epochs. The last epoch is kept, never the best on validation."""
+) -> tuple[list[dict], bool]:
+    """Train until the training loss converges, or for max_epochs.
+
+    Return the history and whether training converged. The last epoch is kept. The
+    validation data is evaluated for the learning curves only. It never decides when to stop.
+    """
     optimizer = torch.optim.Adam(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
     loss_function = build_loss(config)
     generator = torch.Generator().manual_seed(config.seed)
     history = []
-    for epoch in range(1, config.epochs + 1):
+    best_loss = float("inf")
+    stalled = 0
+    converged = False
+    for epoch in range(1, config.max_epochs + 1):
         model.train()
         order = torch.randperm(len(x_train), generator=generator)
         total_loss = 0.0
@@ -124,13 +136,25 @@ def fit(
             "validation_macro_f1": f1_score(y_val.numpy(), val_predictions, average="macro"),
         }
         history.append(entry)
-        print(
-            f"epoch {epoch:3d}/{config.epochs}  train loss {entry['train_loss']:.4f}  "
-            f"val loss {entry['validation_loss']:.4f}  val acc {entry['validation_accuracy']:.4f}  "
-            f"val macro F1 {entry['validation_macro_f1']:.4f}",
-            flush=True,
-        )
-    return history
+        if config.tol > 0:
+            # Compare with the best loss so far, not with the previous epoch. The loss of
+            # each epoch is noisy, so a comparison of consecutive epochs never settles.
+            if entry["train_loss"] < best_loss * (1 - config.tol):
+                best_loss, stalled = entry["train_loss"], 0
+            else:
+                stalled += 1
+            converged = stalled >= config.patience
+        if epoch == 1 or epoch % 10 == 0 or converged or epoch == config.max_epochs:
+            print(
+                f"epoch {epoch:3d}/{config.max_epochs}  train loss {entry['train_loss']:.4f}  "
+                f"val loss {entry['validation_loss']:.4f}  "
+                f"val acc {entry['validation_accuracy']:.4f}  "
+                f"val macro F1 {entry['validation_macro_f1']:.4f}",
+                flush=True,
+            )
+        if converged:
+            break
+    return history, converged
 
 
 def save_checkpoint(
@@ -143,13 +167,15 @@ def save_checkpoint(
     encoder: Encoder,
 ) -> None:
     """Save everything needed to rebuild the model and its input features."""
-    extra = {"idf": torch.from_numpy(encoder.idf)} if isinstance(encoder, TFIDF) else {}
+    base = encoder.encoder if isinstance(encoder, L2Normalized) else encoder
+    extra = {"idf": torch.from_numpy(base.idf)} if isinstance(base, TFIDF) else {}
     torch.save(
         {
             **extra,
             "state_dict": model.state_dict(),
             "model": config.model,
             "encoder": config.encoder,
+            "normalize": isinstance(encoder, L2Normalized),
             "d_in": len(encoder),
             "labels": list(LABELS),
             "hidden": list(mlp_config.hidden),
@@ -253,7 +279,7 @@ def run_fold(
         )
 
     print(f"Train: {len(train):,} rows; validation: {len(val):,} rows", flush=True)
-    encoder = build_encoder(config.encoder, tokenizer, train["text"])
+    encoder = build_encoder(config.encoder, tokenizer, train["text"], config.normalize)
     print(f"Encoder: {config.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
     x_train = encode_samples(train["input_ids"], encoder)
     x_val = encode_samples(val["input_ids"], encoder)
@@ -263,7 +289,12 @@ def run_fold(
     torch.manual_seed(config.seed)
     model = build_model(config, mlp_config, len(encoder), len(LABELS))
     print(f"Training {config.model} ({sum(p.numel() for p in model.parameters()):,} parameters)")
-    history = fit(model, x_train, y_train, x_val, y_val, config)
+    history, converged = fit(model, x_train, y_train, x_val, y_val, config)
+    print(
+        f"{'Converged' if converged else 'Did NOT converge'} after {len(history)} epochs "
+        f"(cap {config.max_epochs})",
+        flush=True,
+    )
 
     train_logits = predict_logits(model, x_train, config.batch_size)
     val_logits = predict_logits(model, x_val, config.batch_size)
@@ -294,6 +325,8 @@ def run_fold(
             torch.softmax(val_logits, dim=1).numpy(),
             labels=list(range(len(LABELS))),
         ),
+        "epochs_run": len(history),
+        "converged": converged,
         "elapsed_seconds": perf_counter() - start,
         "history": history,
     }
@@ -331,7 +364,10 @@ def run(args: argparse.Namespace) -> None:
     config = TrainingConfig(
         model=args.model,
         encoder=args.encoder,
-        epochs=args.epochs,
+        normalize=args.normalize,
+        max_epochs=args.max_epochs,
+        tol=args.tol,
+        patience=args.patience,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
@@ -371,6 +407,8 @@ def run(args: argparse.Namespace) -> None:
         "model": config.model,
         "encoder": config.encoder,
         "scores": summarise(results),
+        "epochs_run": [result["epochs_run"] for result in results],
+        "converged": [result["converged"] for result in results],
         "elapsed_seconds": perf_counter() - start,
         "pooled_out_of_fold_classification_report": report,
     }
@@ -384,6 +422,10 @@ def run(args: argparse.Namespace) -> None:
         score = summary["scores"][name]
         if score is not None:
             print(f"{name:22s} mean {score['mean']:.4f}  std {score['std']:.4f}")
+    print(
+        f"Converged in {sum(summary['converged'])}/{len(folds)} folds; "
+        f"epochs run: {summary['epochs_run']} (cap {config.max_epochs})"
+    )
     print(f"Total time: {summary['elapsed_seconds']:.1f} seconds")
     print("\nPooled out-of-fold classification report:")
     print(
@@ -430,7 +472,27 @@ def main() -> None:
         help="Requested BPE vocabulary size",
     )
     parser.add_argument("--min-frequency", type=int, default=DEFAULT_TOKENIZER.min_frequency)
-    parser.add_argument("--epochs", type=int, default=DEFAULT_TRAINING.epochs)
+    parser.add_argument(
+        "--normalize",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULT_TRAINING.normalize,
+        help="Scale each document vector to unit L2 norm",
+    )
+    parser.add_argument(
+        "--max-epochs",
+        "--epochs",
+        dest="max_epochs",
+        type=int,
+        default=DEFAULT_TRAINING.max_epochs,
+        help="Epoch cap. Training stops earlier when the training loss converges",
+    )
+    parser.add_argument(
+        "--tol",
+        type=float,
+        default=DEFAULT_TRAINING.tol,
+        help="Minimum relative training-loss improvement per epoch (0 = never stop early)",
+    )
+    parser.add_argument("--patience", type=int, default=DEFAULT_TRAINING.patience)
     parser.add_argument("--batch-size", type=int, default=DEFAULT_TRAINING.batch_size)
     parser.add_argument("--learning-rate", type=float, default=DEFAULT_TRAINING.learning_rate)
     parser.add_argument("--weight-decay", type=float, default=DEFAULT_TRAINING.weight_decay)
@@ -444,8 +506,10 @@ def main() -> None:
     args = parser.parse_args()
     if args.vocab_size < 2 or args.min_frequency < 1:
         parser.error("--vocab-size must be at least 2 and --min-frequency must be positive.")
-    if args.epochs < 1 or args.batch_size < 1:
-        parser.error("--epochs and --batch-size must be positive.")
+    if args.max_epochs < 1 or args.batch_size < 1 or args.patience < 1:
+        parser.error("--max-epochs, --batch-size and --patience must be positive.")
+    if args.tol < 0:
+        parser.error("--tol must not be negative.")
     if args.learning_rate <= 0 or args.weight_decay < 0:
         parser.error("--learning-rate must be positive and --weight-decay must not be negative.")
     if any(size < 1 for size in args.hidden):
