@@ -18,6 +18,31 @@ class Encoder(ABC):
         pass
 
 
+class L2Normalized(Encoder):
+    """Scale the vectors of another encoder to unit L2 norm.
+
+    This has no fitted parameters, so it is safe across folds. A zero vector stays zero.
+    """
+
+    def __init__(self, encoder: Encoder):
+        self.encoder = encoder
+
+    def __len__(self) -> int:
+        return len(self.encoder)
+
+    def __call__(self, x: str) -> np.ndarray:
+        return self._scale(self.encoder(x))
+
+    def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
+        """Represent saved token IDs without tokenizing the text again."""
+        return self._scale(self.encoder.from_ids(token_ids))
+
+    @staticmethod
+    def _scale(vector: np.ndarray) -> np.ndarray:
+        norm = np.linalg.norm(vector)
+        return vector / norm if norm > 0 else vector
+
+
 class TokenIndicator(Encoder):
     def __init__(self, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
