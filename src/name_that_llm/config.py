@@ -23,8 +23,12 @@ class TokenizerConfig:
 
 @dataclass(frozen=True)
 class TrainingConfig:
+    model: str = "log-linear"  # "log-linear" or "mlp"
     encoder: str = "bag-of-words"
-    max_iter: int = 1000
+    epochs: int = 20
+    batch_size: int = 64
+    learning_rate: float = 1e-3
+    weight_decay: float = 1e-4
     seed: int = DEFAULT_SEED
     limit_per_class: int | None = None
 
@@ -50,10 +54,7 @@ def save_config(
     path: Path, **groups: SplitConfig | TokenizerConfig | TrainingConfig | MLPConfig
 ) -> None:
     """Save the settings actually used, without rewriting an unchanged snapshot."""
-    content = (
-        json.dumps({name: asdict(config) for name, config in groups.items()}, indent=2)
-        + "\n"
-    )
+    content = json.dumps({name: asdict(config) for name, config in groups.items()}, indent=2) + "\n"
     if path.is_file() and path.read_text(encoding="utf-8") == content:
         return
     path.parent.mkdir(parents=True, exist_ok=True)

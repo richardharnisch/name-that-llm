@@ -1,4 +1,4 @@
-"""Train and evaluate logistic regression on cached BPE document features."""
+"""Train and evaluate our own PyTorch classifiers on cached BPE document features."""
 
 import argparse
 import json
@@ -10,9 +10,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix, vstack
-from sklearn.linear_model import LogisticRegression
+import torch
+import torch.nn as nn
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
@@ -21,28 +22,147 @@ from sklearn.metrics import (
     log_loss,
 )
 
+from name_that_llm.classifiers import MLP, LogLinear
 from name_that_llm.config import (
     DATA_DIR,
+    DEFAULT_MLP,
     DEFAULT_TOKENIZER,
     DEFAULT_TRAINING,
     TOKENIZER_ROOT,
     TRAIN_OUTPUT_DIR,
+    MLPConfig,
     TokenizerConfig,
     TrainingConfig,
     save_config,
 )
-from name_that_llm.encodings import BagOfWords, TokenIndicator
+from name_that_llm.data import LABELS
+from name_that_llm.encodings import TFIDF, BagOfWords, Encoder, TokenIndicator
 from name_that_llm.preprocess import preprocess_data
 from name_that_llm.tokenizer import Tokenizer
 
+MODELS = ("log-linear", "mlp")
+ENCODERS = ("bag-of-words", "token-indicator", "tf-idf")
 
-def encode_samples(
-    input_ids: pd.Series, encoder: BagOfWords | TokenIndicator
-) -> csr_matrix:
-    """Build sparse document vectors from saved IDs without tokenizing again."""
-    return vstack(
-        [csr_matrix(encoder.from_ids(ids)) for ids in input_ids], format="csr"
+
+def build_encoder(name: str, tokenizer: Tokenizer, train_texts: pd.Series) -> Encoder:
+    """Create an encoder. TF-IDF weights come from training texts only."""
+    if name == "bag-of-words":
+        return BagOfWords(tokenizer)
+    if name == "token-indicator":
+        return TokenIndicator(tokenizer)
+    return TFIDF(tokenizer, train_texts.to_numpy())
+
+
+def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> Encoder:
+    """Rebuild the encoder a saved model was trained with."""
+    name = checkpoint["encoder"]
+    if name == "tf-idf":
+        return TFIDF.from_idf(tokenizer, checkpoint["idf"].numpy())
+    return build_encoder(name, tokenizer, pd.Series(dtype=str))
+
+
+def encode_samples(input_ids: pd.Series, encoder: Encoder) -> torch.Tensor:
+    """Build dense document vectors from saved IDs without tokenizing again."""
+    features = np.zeros((len(input_ids), len(encoder)), dtype=np.float32)
+    for row, ids in enumerate(input_ids):
+        features[row] = encoder.from_ids(ids)
+    return torch.from_numpy(features)
+
+
+def build_model(
+    config: TrainingConfig, mlp_config: MLPConfig, d_in: int, n_classes: int
+) -> nn.Module:
+    if config.model == "log-linear":
+        return LogLinear(d_in, n_classes)
+    return MLP(d_in, n_classes, hidden=mlp_config.hidden, act=getattr(nn, mlp_config.activation))
+
+
+@torch.no_grad()
+def predict_logits(model: nn.Module, features: torch.Tensor, batch_size: int) -> torch.Tensor:
+    model.eval()
+    return torch.cat([model(batch) for batch in features.split(batch_size)])
+
+
+def fit(
+    model: nn.Module,
+    x_train: torch.Tensor,
+    y_train: torch.Tensor,
+    x_val: torch.Tensor,
+    y_val: torch.Tensor,
+    config: TrainingConfig,
+) -> list[dict]:
+    """Train for a fixed number of epochs. The last epoch is kept, never the best on validation."""
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
     )
+    loss_function = nn.CrossEntropyLoss()
+    generator = torch.Generator().manual_seed(config.seed)
+    history = []
+    for epoch in range(1, config.epochs + 1):
+        model.train()
+        order = torch.randperm(len(x_train), generator=generator)
+        total_loss = 0.0
+        for batch in order.split(config.batch_size):
+            optimizer.zero_grad()
+            loss = loss_function(model(x_train[batch]), y_train[batch])
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item() * len(batch)
+        val_logits = predict_logits(model, x_val, config.batch_size)
+        val_predictions = val_logits.argmax(dim=1).numpy()
+        entry = {
+            "epoch": epoch,
+            "train_loss": total_loss / len(x_train),
+            "validation_loss": loss_function(val_logits, y_val).item(),
+            "validation_accuracy": accuracy_score(y_val.numpy(), val_predictions),
+            "validation_macro_f1": f1_score(y_val.numpy(), val_predictions, average="macro"),
+        }
+        history.append(entry)
+        print(
+            f"epoch {epoch:3d}/{config.epochs}  train loss {entry['train_loss']:.4f}  "
+            f"val loss {entry['validation_loss']:.4f}  val acc {entry['validation_accuracy']:.4f}  "
+            f"val macro F1 {entry['validation_macro_f1']:.4f}",
+            flush=True,
+        )
+    return history
+
+
+def save_checkpoint(
+    path: Path,
+    model: nn.Module,
+    config: TrainingConfig,
+    mlp_config: MLPConfig,
+    tokenizer_config: TokenizerConfig,
+    tokenizer_path: Path,
+    encoder: Encoder,
+) -> None:
+    """Save everything needed to rebuild the model and its input features."""
+    extra = {"idf": torch.from_numpy(encoder.idf)} if isinstance(encoder, TFIDF) else {}
+    torch.save(
+        {
+            **extra,
+            "state_dict": model.state_dict(),
+            "model": config.model,
+            "encoder": config.encoder,
+            "d_in": len(encoder),
+            "labels": list(LABELS),
+            "hidden": list(mlp_config.hidden),
+            "activation": mlp_config.activation,
+            "tokenizer_path": str(tokenizer_path),
+            "tokenizer": asdict(tokenizer_config),
+        },
+        path,
+    )
+
+
+def load_checkpoint(path: Path) -> tuple[nn.Module, dict]:
+    """Load a saved model in evaluation mode, with its metadata."""
+    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+    config = TrainingConfig(model=checkpoint["model"])
+    mlp_config = MLPConfig(hidden=tuple(checkpoint["hidden"]), activation=checkpoint["activation"])
+    model = build_model(config, mlp_config, checkpoint["d_in"], len(checkpoint["labels"]))
+    model.load_state_dict(checkpoint["state_dict"])
+    return model.eval(), checkpoint
 
 
 def save_plots(labels, predictions, classes, report: dict, output: Path) -> None:
@@ -71,17 +191,36 @@ def save_plots(labels, predictions, classes, report: dict, output: Path) -> None
     plt.close(figure)
 
 
+def save_learning_curves(history: list[dict], output: Path) -> None:
+    epochs = [entry["epoch"] for entry in history]
+    figure, (loss_axis, score_axis) = plt.subplots(1, 2, figsize=(12, 4))
+    loss_axis.plot(epochs, [entry["train_loss"] for entry in history], label="train")
+    loss_axis.plot(epochs, [entry["validation_loss"] for entry in history], label="validation")
+    loss_axis.set(xlabel="Epoch", ylabel="Cross-entropy loss", title="Loss")
+    loss_axis.legend()
+    score_axis.plot(epochs, [entry["validation_accuracy"] for entry in history], label="accuracy")
+    score_axis.plot(epochs, [entry["validation_macro_f1"] for entry in history], label="macro F1")
+    score_axis.set(xlabel="Epoch", ylabel="Score", title="Validation scores")
+    score_axis.legend()
+    figure.tight_layout()
+    figure.savefig(output / "learning_curves.png", dpi=150)
+    plt.close(figure)
+
+
 def run(args: argparse.Namespace) -> None:
     start = perf_counter()
     config = TrainingConfig(
+        model=args.model,
         encoder=args.encoder,
-        max_iter=args.max_iter,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
         seed=args.seed,
         limit_per_class=args.limit_per_class,
     )
-    tokenizer_config = TokenizerConfig(
-        vocab_size=args.vocab_size, min_frequency=args.min_frequency
-    )
+    mlp_config = MLPConfig(hidden=tuple(args.hidden), activation=DEFAULT_MLP.activation)
+    tokenizer_config = TokenizerConfig(vocab_size=args.vocab_size, min_frequency=args.min_frequency)
     print("Preparing BPE tokenizer and tokenized samples...", flush=True)
     tokenizer_path, sample_directory, reused = preprocess_data(
         directory=args.data_dir,
@@ -107,28 +246,34 @@ def run(args: argparse.Namespace) -> None:
         )
 
     print(f"Train: {len(train):,} rows; validation: {len(val):,} rows", flush=True)
-    encoder = (
-        BagOfWords(tokenizer)
-        if config.encoder == "bag-of-words"
-        else TokenIndicator(tokenizer)
-    )
+    encoder = build_encoder(config.encoder, tokenizer, train["text"])
     print(f"Encoder: {config.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
     x_train = encode_samples(train["input_ids"], encoder)
     x_val = encode_samples(val["input_ids"], encoder)
+    y_train = torch.tensor(train["label"].to_numpy(), dtype=torch.long)
+    y_val = torch.tensor(val["label"].to_numpy(), dtype=torch.long)
 
-    print("Fitting logistic regression...", flush=True)
-    classifier = LogisticRegression(max_iter=config.max_iter, random_state=config.seed)
-    classifier.fit(x_train, train["model"])
-    predictions = classifier.predict(x_val)
+    torch.manual_seed(config.seed)
+    model = build_model(config, mlp_config, len(encoder), len(LABELS))
+    print(f"Training {config.model} ({sum(p.numel() for p in model.parameters()):,} parameters)")
+    history = fit(model, x_train, y_train, x_val, y_val, config)
+
+    train_logits = predict_logits(model, x_train, config.batch_size)
+    val_logits = predict_logits(model, x_val, config.batch_size)
+    class_ids = list(range(len(LABELS)))
+    val_predictions = val_logits.argmax(dim=1).numpy()
+    val_true_names = [LABELS[i] for i in y_val.tolist()]
+    val_predicted_names = [LABELS[i] for i in val_predictions]
     report = classification_report(
-        val["model"],
-        predictions,
-        labels=classifier.classes_,
+        val_true_names,
+        val_predicted_names,
+        labels=list(LABELS),
         output_dict=True,
         zero_division=0,
     )
     metrics = {
         **asdict(config),
+        "mlp": asdict(mlp_config) if config.model == "mlp" else None,
         "tokenizer": "bpe",
         "tokenizer_path": str(tokenizer_path),
         "sample_directory": str(sample_directory),
@@ -137,13 +282,15 @@ def run(args: argparse.Namespace) -> None:
         "train_rows": len(train),
         "validation_rows": len(val),
         "vocab_size": len(encoder),
-        "train_accuracy": classifier.score(x_train, train["model"]),
-        "validation_accuracy": accuracy_score(val["model"], predictions),
-        "validation_macro_f1": f1_score(val["model"], predictions, average="macro"),
+        "parameters": sum(p.numel() for p in model.parameters()),
+        "train_accuracy": accuracy_score(y_train.numpy(), train_logits.argmax(dim=1).numpy()),
+        "validation_accuracy": accuracy_score(y_val.numpy(), val_predictions),
+        "validation_macro_f1": f1_score(y_val.numpy(), val_predictions, average="macro"),
         "validation_log_loss": log_loss(
-            val["model"], classifier.predict_proba(x_val), labels=classifier.classes_
+            y_val.numpy(), torch.softmax(val_logits, dim=1).numpy(), labels=class_ids
         ),
         "elapsed_seconds": perf_counter() - start,
+        "history": history,
         "classification_report": report,
     }
     for name in (
@@ -155,19 +302,36 @@ def run(args: argparse.Namespace) -> None:
         print(f"{name}: {metrics[name]:.4f}")
     print(f"Training and evaluation: {metrics['elapsed_seconds']:.1f} seconds")
     print("\nValidation classification report:")
-    print(classification_report(val["model"], predictions, digits=3, zero_division=0))
+    print(
+        classification_report(
+            val_true_names, val_predicted_names, labels=list(LABELS), digits=3, zero_division=0
+        )
+    )
 
     args.output.mkdir(parents=True, exist_ok=True)
     save_config(
-        args.output / "config.json", tokenizer=tokenizer_config, training=config
+        args.output / "config.json",
+        tokenizer=tokenizer_config,
+        training=config,
+        **({"mlp": mlp_config} if config.model == "mlp" else {}),
     )
     (args.output / "metrics.json").write_text(
         json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
     )
-    save_plots(val["model"], predictions, classifier.classes_, report, args.output)
+    save_checkpoint(
+        args.output / "model.pt",
+        model,
+        config,
+        mlp_config,
+        tokenizer_config,
+        tokenizer_path,
+        encoder,
+    )
+    save_plots(val_true_names, val_predicted_names, list(LABELS), report, args.output)
+    save_learning_curves(history, args.output)
     print(
-        "Saved config.json, metrics.json, confusion_matrix.png, "
-        f"and per_class_f1.png to {args.output}"
+        "Saved model.pt, config.json, metrics.json, confusion_matrix.png, "
+        f"per_class_f1.png, and learning_curves.png to {args.output}"
     )
 
 
@@ -186,23 +350,27 @@ def main() -> None:
         help="Tokenized data root (default: <data-dir>/tokenized)",
     )
     parser.add_argument("--output", type=Path, default=TRAIN_OUTPUT_DIR)
+    parser.add_argument("--model", choices=MODELS, default=DEFAULT_TRAINING.model)
+    parser.add_argument("--encoder", choices=ENCODERS, default=DEFAULT_TRAINING.encoder)
     parser.add_argument(
-        "--encoder",
-        choices=("bag-of-words", "token-indicator"),
-        default=DEFAULT_TRAINING.encoder,
+        "--hidden",
+        type=int,
+        nargs="+",
+        default=list(DEFAULT_MLP.hidden),
+        help="Hidden layer sizes, used only by --model mlp",
     )
     parser.add_argument(
         "--vocab-size",
-        "--max-vocab",
         dest="vocab_size",
         type=int,
         default=DEFAULT_TOKENIZER.vocab_size,
         help="Requested BPE vocabulary size",
     )
-    parser.add_argument(
-        "--min-frequency", type=int, default=DEFAULT_TOKENIZER.min_frequency
-    )
-    parser.add_argument("--max-iter", type=int, default=DEFAULT_TRAINING.max_iter)
+    parser.add_argument("--min-frequency", type=int, default=DEFAULT_TOKENIZER.min_frequency)
+    parser.add_argument("--epochs", type=int, default=DEFAULT_TRAINING.epochs)
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_TRAINING.batch_size)
+    parser.add_argument("--learning-rate", type=float, default=DEFAULT_TRAINING.learning_rate)
+    parser.add_argument("--weight-decay", type=float, default=DEFAULT_TRAINING.weight_decay)
     parser.add_argument("--seed", type=int, default=DEFAULT_TRAINING.seed)
     parser.add_argument(
         "--limit-per-class",
@@ -211,10 +379,14 @@ def main() -> None:
         help="Cap rows per class in each set for a quick run",
     )
     args = parser.parse_args()
-    if args.vocab_size < 2 or args.min_frequency < 1 or args.max_iter < 1:
-        parser.error(
-            "--vocab-size must be at least 2; --min-frequency and --max-iter must be positive."
-        )
+    if args.vocab_size < 2 or args.min_frequency < 1:
+        parser.error("--vocab-size must be at least 2 and --min-frequency must be positive.")
+    if args.epochs < 1 or args.batch_size < 1:
+        parser.error("--epochs and --batch-size must be positive.")
+    if args.learning_rate <= 0 or args.weight_decay < 0:
+        parser.error("--learning-rate must be positive and --weight-decay must not be negative.")
+    if any(size < 1 for size in args.hidden):
+        parser.error("--hidden sizes must be positive.")
     if args.limit_per_class is not None and args.limit_per_class < 1:
         parser.error("--limit-per-class must be positive.")
     try:
