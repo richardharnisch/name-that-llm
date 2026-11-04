@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import StratifiedGroupKFold
 
 from name_that_llm.config import DEFAULT_SPLIT, SplitConfig, save_config
 
@@ -29,7 +30,7 @@ LABELS = (
 )
 # Keep the existing imports available; config.py owns the defaults.
 DEFAULT_SPLITS = DEFAULT_SPLIT.splits
-DEFAULT_VAL_SIZE = DEFAULT_SPLIT.val_size
+DEFAULT_N_FOLDS = DEFAULT_SPLIT.n_folds
 DEFAULT_SEED = DEFAULT_SPLIT.seed
 
 
@@ -52,7 +53,7 @@ def validate_columns(frame: pd.DataFrame, columns: tuple[str, ...]) -> None:
 def load_training_data(
     directory: Path, splits: tuple[str, ...] = DEFAULT_SPLITS
 ) -> pd.DataFrame:
-    """Load eligible source rows before the train/validation split."""
+    """Load eligible source rows before the cross-validation split."""
     path = directory / "passages_clean.csv"
     if not path.is_file():
         raise ValueError(
@@ -79,53 +80,81 @@ def load_training_data(
     return frame
 
 
-def split_training_data(
+def assign_folds(
     frame: pd.DataFrame,
-    val_size: float = DEFAULT_VAL_SIZE,
+    n_folds: int = DEFAULT_N_FOLDS,
     seed: int = DEFAULT_SEED,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Split whole prompts, with stable membership and row order for the same input."""
+) -> pd.DataFrame:
+    """Add a `fold` column. Whole prompts stay in one fold, and labels are balanced.
+
+    For fold k, rows with fold == k are validation and all other rows are training.
+    Rows are sorted by ID first, so the result does not depend on the CSV row order.
+    """
     validate_columns(frame, ("id", "prompt_id", "text", "model", "split"))
-    if not 0 < val_size < 1:
-        raise ValueError("Validation size must be between 0 and 1 (exclusive).")
-    if frame["prompt_id"].nunique() < 2:
-        raise ValueError(
-            "At least two distinct prompts are needed for train/validation splitting."
-        )
-    # A fixed seed alone does not guarantee stable CSV row order.
+    if n_folds < 2:
+        raise ValueError("At least two folds are needed.")
+    if frame["prompt_id"].nunique() < n_folds:
+        raise ValueError(f"At least {n_folds} distinct prompts are needed for {n_folds} folds.")
     frame = frame.sort_values("id").reset_index(drop=True)
-    splitter = GroupShuffleSplit(n_splits=1, test_size=val_size, random_state=seed)
-    train_indices, val_indices = next(splitter.split(frame, groups=frame["prompt_id"]))
-    train = frame.iloc[train_indices].reset_index(drop=True)
-    val = frame.iloc[val_indices].reset_index(drop=True)
+    splitter = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=seed)
+    folds = np.full(len(frame), -1)
+    for fold, (_, val_indices) in enumerate(
+        splitter.split(frame, frame["model"], groups=frame["prompt_id"])
+    ):
+        folds[val_indices] = fold
+    frame["fold"] = folds
     labels = set(frame["model"])
-    if set(train["model"]) != labels or set(val["model"]) != labels:
-        raise ValueError(
-            "Both train and validation must contain every model. "
-            "Use more prompts or change --val-size or --seed."
-        )
-    return train, val
+    for fold in range(n_folds):
+        in_fold = frame["fold"] == fold
+        if set(frame.loc[in_fold, "model"]) != labels:
+            raise ValueError(f"Fold {fold} validation lacks a model. Change --folds or --seed.")
+        if set(frame.loc[~in_fold, "model"]) != labels:
+            raise ValueError(f"Fold {fold} training lacks a model. Change --folds or --seed.")
+    return frame
+
+
+def fold_summary(frame: pd.DataFrame) -> str:
+    counts = frame.groupby("fold").size()
+    return f"{len(counts)} folds; rows per fold: {', '.join(f'{n:,}' for n in counts)}"
+
+
+def split_fold(frame: pd.DataFrame, fold: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return (training, validation) rows for one cross-validation fold."""
+    if fold not in set(frame["fold"]):
+        raise ValueError(f"Fold {fold} does not exist. Folds: {sorted(set(frame['fold']))}.")
+    return (
+        frame[frame["fold"] != fold].reset_index(drop=True),
+        frame[frame["fold"] == fold].reset_index(drop=True),
+    )
+
+
+def load_folds(directory: Path) -> pd.DataFrame:
+    """Read folds.csv, the output of write_data_splits."""
+    path = directory / "folds.csv"
+    if not path.is_file():
+        raise ValueError(f"Missing {path}. Run `uv run python scripts/split_data.py` first.")
+    frame = pd.read_csv(path, dtype=str, keep_default_na=False)
+    validate_columns(frame, ("id", "prompt_id", "text", "model", "split", "fold"))
+    frame["fold"] = frame["fold"].astype(int)
+    if set(frame["model"]) != set(LABELS):
+        raise ValueError(f"{path} must contain all 18 model labels and no unknown labels.")
+    return frame
 
 
 def write_data_splits(
     directory: Path,
     output: Path,
-    val_size: float = DEFAULT_VAL_SIZE,
+    n_folds: int = DEFAULT_N_FOLDS,
     seed: int = DEFAULT_SEED,
     splits: tuple[str, ...] = DEFAULT_SPLITS,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Write train.csv and val.csv without changing the downloaded source files."""
-    config = SplitConfig(splits=splits, val_size=val_size, seed=seed)
-    train, val = split_training_data(
-        load_training_data(directory, splits), val_size, seed
-    )
+) -> pd.DataFrame:
+    """Write folds.csv without changing the downloaded source files."""
+    config = SplitConfig(splits=splits, n_folds=n_folds, seed=seed)
+    frame = assign_folds(load_training_data(directory, splits), n_folds, seed)
     output.mkdir(parents=True, exist_ok=True)
-    for name, subset in (("train", train), ("val", val)):
-        subset.to_csv(
-            output / f"{name}.csv", index=False, encoding="utf-8", lineterminator="\n"
-        )
+    frame.to_csv(output / "folds.csv", index=False, encoding="utf-8", lineterminator="\n")
     save_config(output / "split_config.json", split=config)
-    return train, val
+    return frame
 
 
 def load_test_data(path: Path) -> pd.DataFrame:

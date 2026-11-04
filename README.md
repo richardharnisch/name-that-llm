@@ -4,9 +4,10 @@
 
 `src/name_that_llm/config.py` owns the experiment defaults in frozen dataclasses:
 
-- `SplitConfig`: source groups, validation fraction `0.2`, and seed `42`.
+- `SplitConfig`: source groups, number of cross-validation folds `5`, and seed `42`.
 - `TokenizerConfig`: BPE vocabulary size `8000` and minimum pair frequency `2`.
-- `TrainingConfig`: encoder, logistic regression iteration limit `1000`, seed,
+- `TrainingConfig`: model (`log-linear`, `mlp`, or `svm`), encoder (`bag-of-words`,
+  `token-indicator`, or `tf-idf`), epochs, batch size, learning rate, weight decay, seed,
   and optional per-class row limit. BPE settings belong to `TokenizerConfig`.
 - `MLPConfig`: hidden layer sizes `(256,)` and activation `ReLU`.
 
@@ -21,11 +22,11 @@ from name_that_llm.config import DEFAULT_TOKENIZER
 from name_that_llm.preprocess import preprocess_data
 
 config = replace(DEFAULT_TOKENIZER, vocab_size=16000)
-preprocess_data(vocab_size=config.vocab_size, min_frequency=config.min_frequency)
+preprocess_data(vocab_size=config.vocab_size, min_frequency=config.min_frequency, fold=0)
 ```
 
 Resolved settings are saved as `data/split_config.json`, `config.json` beside the
-tokenized Parquet files, and `config.json` in each training output directory.
+tokenized Parquet files of each fold, and `config.json` in each training output directory.
 Split settings are for reproducibility, not parameters to optimize for higher scores.
 
 ## Prepare the data
@@ -37,73 +38,91 @@ uv run python scripts/preprocess_data.py
 
 This downloads and verifies the public dataset, then creates:
 
-- `data/train.csv`: training passages.
-- `data/val.csv`: validation passages.
+- `data/folds.csv`: all eligible passages, with a `fold` column from `0` to `4`.
 - `data/raw/extended-v7/`: unchanged source files.
 
-For an existing download, create the split without downloading again:
+`scripts/preprocess_data.py` then prepares the tokenizer and tokenized samples of every fold
+(see "BPE preprocessing").
+
+For an existing download, create the folds without downloading again:
 
 ```sh
 uv run python scripts/split_data.py
 ```
 
-The default split uses 80% of prompts for training and 20% for validation, with
-seed `42`. All passages with the same `prompt_id` stay in one set. The row ratio
-can differ slightly because prompts have different numbers of passages. Both
-sets must contain all 18 model labels.
+### Cross-validation folds
 
-The same dataset version, settings, and locked dependencies produce the same
-files on each machine, even if the source CSV row order changes. Output rows are
-sorted by ID and use UTF-8 with LF line endings. Repeat runs replace the generated
-CSV files. Source files do not change.
+The passages are divided into 5 folds. For fold `k`, the passages with `fold == k` are the
+validation set, and the passages of the other four folds are the training set. Every passage
+is a validation passage in exactly one fold.
 
-Only source groups `new`, `new2`, and `proxy_v1` are included. The CSV `split`
-column keeps these source group names; the file name identifies train or validation.
-Use only `train.csv` to fit models and preprocessing; use `val.csv` for evaluation.
+- All passages with the same `prompt_id` stay in one fold, so a prompt never appears in both
+  the training and validation set of one fold.
+- The split balances the model labels across folds (scikit-learn `StratifiedGroupKFold`
+  with shuffling and seed `42`). Every training and validation set must contain all
+  18 model labels, or the split fails.
+- The same dataset version, settings, and locked dependencies produce the same
+  `folds.csv` on each machine, even if the source CSV row order changes. Output rows are
+  sorted by ID and use UTF-8 with LF line endings. Repeat runs replace the file.
+  Source files do not change.
+- Only source groups `new`, `new2`, and `proxy_v1` are included. The CSV `split` column
+  keeps these source group names.
 
-To change the validation fraction or seed:
+To change the number of folds or the seed:
 
 ```sh
-uv run ntl-split --val-size 0.2 --seed 42
+uv run ntl-split --folds 5 --seed 42
 ```
 
-## Run a simple training experiment
+There is no separate held-out test set. All passages are used in the cross-validation, so
+scores that you use to choose settings are optimistic estimates of performance on new data.
+
+## Run a cross-validation experiment
 
 From the project root, after preparing the data:
 
 ```sh
-uv run python scripts/train.py
+uv run ntl-train --model mlp --encoder bag-of-words
 ```
 
-You can also use `uv run ntl-train` or `uv run python -m name_that_llm.train`.
+You can also use `uv run python scripts/train.py` or `uv run python -m name_that_llm.train`.
 
-The pipeline uses the BPE tokenizer in `src/name_that_llm/tokenizer.py`, the
-bag-of-words encoder, and a logistic regression classifier. It calls the BPE
-preprocessing step below to create or reuse the saved tokenizer and tokenized
-samples. Features use the saved `input_ids` from the Parquet files without
-repeating tokenization. The tokenizer is fitted on training text only, with
-defaults from `TokenizerConfig`: vocabulary size `8000` and minimum pair frequency `2`.
+| Option | Choices |
+|---|---|
+| `--model` | `log-linear` (default), `mlp`, `svm` |
+| `--encoder` | `bag-of-words` (default), `token-indicator`, `tf-idf` |
 
-The script prints row counts, vocabulary size, training accuracy, validation
-accuracy, macro F1, log loss, elapsed time, and per-class precision, recall, and F1.
-It saves these files to `artifacts/simple_train/`:
+`svm` uses the same linear layer as `log-linear`, trained with a multi-class hinge loss.
+Its scores are not probabilities, so its log loss is not reported.
 
-- `metrics.json`: scores, settings, tokenizer paths, and the per-class report.
+For each fold, the command prepares or reuses the BPE tokenizer and tokenized samples, builds
+the features from the saved `input_ids` without tokenizing again, trains a new model on the
+training set of the fold, and evaluates it on the validation set of the fold. The tokenizer
+and the TF-IDF weights are fitted on the training set of the fold only. The model of the last
+epoch is kept. The script does not select a model by its validation score.
+
+The script prints the scores of each fold and then the mean and sample standard deviation
+over the folds for training accuracy, validation accuracy, macro F1, and log loss. The folds
+share training data, so the standard deviation is a rough guide only. It saves these files to
+`artifacts/simple_train/`:
+
+- `cv_metrics.json`: scores of each fold, their mean and standard deviation, and the
+  per-class report of the pooled out-of-fold predictions.
 - `config.json`: resolved tokenizer and training settings, including CLI overrides.
-- `confusion_matrix.png`: validation confusion matrix, normalized by true class.
-- `per_class_f1.png`: validation F1 for each model.
+- `confusion_matrix.png` and `per_class_f1.png`: made from the pooled out-of-fold
+  predictions. Each passage is predicted once, by the model that did not train on it.
+- `fold-K/model.pt`, `fold-K/metrics.json`, and `fold-K/learning_curves.png` for each fold.
 
-For a quick check with the token-indicator encoder:
+To run only one fold, or to do a quick check:
 
 ```sh
-uv run python scripts/train.py --encoder token-indicator --limit-per-class 20 --output artifacts/quick
+uv run ntl-train --fold 0
+uv run ntl-train --model svm --encoder token-indicator --limit-per-class 20 --output artifacts/quick
 ```
 
-`--limit-per-class` samples at most that many rows per class from each set with
-the selected seed after preprocessing. The tokenizer still uses the full training
-split. Use `--data-dir` to select a directory containing `train.csv` and `val.csv`.
-These files need `id`, `prompt_id`, `text`, `model`, and `split` columns and all
-18 labels. Preprocessing rejects overlapping IDs and prompts, and duplicate text.
+`--limit-per-class` samples at most that many rows per class from the training and
+validation set of each fold after preprocessing. The tokenizer still uses the full training
+set of the fold.
 
 To change BPE settings and save a separate experiment:
 
@@ -111,21 +130,27 @@ To change BPE settings and save a separate experiment:
 uv run ntl-train --vocab-size 4000 --min-frequency 2 --output artifacts/bpe-4000
 ```
 
-`--max-vocab` is an alias for `--vocab-size`. Use `--tokenizer-root` and
-`--tokenized-root` to select the cache roots. Use `--max-iter`, `--seed`, and
-`--output` to change the classifier settings and result directory.
+Use `--tokenizer-root` and `--tokenized-root` to select the cache roots, and `--data-dir`
+to select the directory that contains `folds.csv`. That file needs `id`, `prompt_id`,
+`text`, `model`, `split`, and `fold` columns, and all 18 labels. Use `--epochs`,
+`--batch-size`, `--learning-rate`, `--weight-decay`, `--hidden`, `--seed`, and `--output`
+to change the model settings and result directory.
 
 ## BPE preprocessing
 
-`scripts/preprocess_data.py` reads the existing `data/train.csv` and `data/val.csv`.
-It fits the tokenizer on training text only, then tokenizes both sets once and saves:
+`scripts/preprocess_data.py` reads `data/folds.csv`. For each fold, it fits a tokenizer on the
+training set of that fold only, then tokenizes the training and validation sets once and
+saves:
 
 ```text
-artifacts/tokenizers/bpe-vs-8000-mf-2/tokenizer.json
-data/tokenized/bpe-vs-8000-mf-2/train.parquet
-data/tokenized/bpe-vs-8000-mf-2/val.parquet
-data/tokenized/bpe-vs-8000-mf-2/preprocessing_manifest.json
+artifacts/tokenizers/bpe-vs-8000-mf-2/fold-K/tokenizer.json
+data/tokenized/bpe-vs-8000-mf-2/fold-K/train.parquet
+data/tokenized/bpe-vs-8000-mf-2/fold-K/val.parquet
+data/tokenized/bpe-vs-8000-mf-2/fold-K/preprocessing_manifest.json
 ```
+
+A separate tokenizer for each fold is necessary. A tokenizer fitted on all passages would
+learn its vocabulary and merge rules from the validation passages of every fold.
 
 This follows `../nlp1-student/part1/tutorial.ipynb`: Hugging Face `Tokenizer(BPE(...))`,
 `Metaspace` pretokenization, and `[UNK]`. The default vocabulary size is 8,000,
@@ -133,21 +158,22 @@ with minimum pair frequency 2.
 There is no lowercasing or additional Unicode normalization. Unseen characters map to
 `[UNK]`. Samples are not padded or truncated, and no beginning/end tokens are added.
 
-Vocabulary size remains a hyperparameter to tune later using classifier validation
-accuracy and macro-F1. Compare 1,000, 4,000, 8,000, and 16,000; 8,000 is a starting
+Vocabulary size remains a hyperparameter to tune later using cross-validated accuracy
+and macro F1. Compare 1,000, 4,000, 8,000, and 16,000; 8,000 is a starting
 point, not an established optimum.
 
 Each Parquet row retains the source columns and adds `input_ids` (a list of integer
 token IDs) and `label` (the model's index in `name_that_llm.data.LABELS`). The manifest
 records settings, labels, library versions, row counts, and file hashes. Repeat runs
 reuse the saved files if the inputs, settings, library versions, and output hashes match.
-Otherwise, preprocessing rebuilds the generated files. Raw text and split CSV files
-do not change.
+Otherwise, preprocessing rebuilds the generated files of that fold. Raw text and
+`folds.csv` do not change.
 
-To use different settings:
+To use different settings, or to process one fold only:
 
 ```sh
 uv run ntl-preprocess --vocab-size 4000 --min-frequency 2
+uv run ntl-preprocess --fold 0
 ```
 
 The encoders support both the tutorial's text interface and saved token IDs:
@@ -158,8 +184,8 @@ import pandas as pd
 from name_that_llm.encodings import BagOfWords, TokenIndicator
 from name_that_llm.tokenizer import Tokenizer
 
-tokenizer = Tokenizer.from_file("artifacts/tokenizers/bpe-vs-8000-mf-2/tokenizer.json")
-train = pd.read_parquet("data/tokenized/bpe-vs-8000-mf-2/train.parquet")
+tokenizer = Tokenizer.from_file("artifacts/tokenizers/bpe-vs-8000-mf-2/fold-0/tokenizer.json")
+train = pd.read_parquet("data/tokenized/bpe-vs-8000-mf-2/fold-0/train.parquet")
 bow = BagOfWords(tokenizer)
 indicator = TokenIndicator(tokenizer)
 

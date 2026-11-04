@@ -11,7 +11,7 @@ DEFAULT_SEED = 42
 class SplitConfig:
     # Exclude reconstructed competition prompts, the pilot, and the Kimi-only rerun.
     splits: tuple[str, ...] = ("new", "new2", "proxy_v1")
-    val_size: float = 0.2
+    n_folds: int = 5  # Cross-validation folds; whole prompts stay in one fold.
     seed: int = DEFAULT_SEED
 
 

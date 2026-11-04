@@ -1,4 +1,4 @@
-"""Fit a BPE tokenizer once and save tokenized training and validation samples."""
+"""Fit one BPE tokenizer per cross-validation fold and save tokenized samples."""
 
 import argparse
 import hashlib
@@ -18,7 +18,7 @@ from name_that_llm.config import (
     TokenizerConfig,
     save_config,
 )
-from name_that_llm.data import LABELS, validate_columns
+from name_that_llm.data import LABELS, load_folds, split_fold, validate_columns
 from name_that_llm.tokenizer import UNK_TOKEN, Tokenizer, train_tokenizer
 
 COLUMNS = ("id", "prompt_id", "text", "model", "split")
@@ -29,15 +29,14 @@ def _sha256(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def _load_splits(paths: dict[str, Path]) -> dict[str, pd.DataFrame]:
+def _load_fold(directory: Path, fold: int) -> dict[str, pd.DataFrame]:
+    """Training rows are every row outside the fold; validation rows are the fold."""
+    train, val = split_fold(load_folds(directory), fold)
     frames = {}
-    for name, path in paths.items():
-        frame = pd.read_csv(path, dtype=str, keep_default_na=False)
+    for name, frame in (("train", train), ("val", val)):
         validate_columns(frame, COLUMNS)
         if set(frame["model"]) != set(LABELS):
-            raise ValueError(
-                f"{path} must contain all 18 model labels and no unknown labels."
-            )
+            raise ValueError(f"Fold {fold} {name} data must contain all 18 model labels.")
         frames[name] = (
             frame.loc[:, list(COLUMNS)].sort_values("id").reset_index(drop=True)
         )
@@ -73,40 +72,46 @@ def preprocess_data(
     output: Path | None = None,
     vocab_size: int = DEFAULT_TOKENIZER.vocab_size,
     min_frequency: int = DEFAULT_TOKENIZER.min_frequency,
+    *,
+    fold: int,
 ) -> tuple[Path, Path, bool]:
-    """Return the tokenizer path, sample directory, and whether saved files were reused."""
+    """Preprocess one fold.
+
+    Return the tokenizer path, sample directory, and whether saved files were reused.
+    The tokenizer is fitted on the fold's training rows only.
+    """
     if vocab_size < 2 or min_frequency < 1:
         raise ValueError(
             "Vocabulary size must be at least 2 and minimum frequency must be positive."
         )
     config = TokenizerConfig(vocab_size=vocab_size, min_frequency=min_frequency)
-    sources = {name: directory / f"{name}.csv" for name in ("train", "val")}
-    for path in sources.values():
-        if not path.is_file():
-            raise ValueError(
-                f"Missing {path}. Run `uv run python scripts/download_data.py` first."
-            )
+    source = directory / "folds.csv"
+    if not source.is_file():
+        raise ValueError(
+            f"Missing {source}. Run `uv run python scripts/split_data.py` first."
+        )
     name = f"bpe-vs-{vocab_size}-mf-{min_frequency}"
-    tokenizer_path = tokenizer_root / name / "tokenizer.json"
+    tokenizer_path = tokenizer_root / name / f"fold-{fold}" / "tokenizer.json"
     sample_directory = (
         output if output is not None else directory / "tokenized"
-    ) / name
+    ) / name / f"fold-{fold}"
     outputs = {
         "tokenizer.json": tokenizer_path,
         **{
             f"{split}.parquet": sample_directory / f"{split}.parquet"
-            for split in sources
+            for split in ("train", "val")
         },
     }
     spec = {
-        "format_version": 1,
+        "format_version": 2,
+        "fold": fold,
         **asdict(config),
         "pre_tokenizer": "Metaspace",
         "unk_token": UNK_TOKEN,
         "labels": list(LABELS),
         "tokenizers_version": version("tokenizers"),
         "pyarrow_version": version("pyarrow"),
-        "sources_sha256": {path.name: _sha256(path) for path in sources.values()},
+        "sources_sha256": {source.name: _sha256(source)},
     }
     manifest_path = sample_directory / "preprocessing_manifest.json"
     if manifest_path.is_file():
@@ -121,7 +126,7 @@ def preprocess_data(
                     save_config(sample_directory / "config.json", tokenizer=config)
                     return tokenizer_path, sample_directory, True
 
-    frames = _load_splits(sources)
+    frames = _load_fold(directory, fold)
     tokenizer = train_tokenizer(frames["train"]["text"], vocab_size, min_frequency)
     tokenizer_path.parent.mkdir(parents=True, exist_ok=True)
     sample_directory.mkdir(parents=True, exist_ok=True)
@@ -152,20 +157,29 @@ def main() -> None:
     parser.add_argument(
         "--min-frequency", type=int, default=DEFAULT_TOKENIZER.min_frequency
     )
+    parser.add_argument("--fold", type=int, help="One fold only (default: every fold)")
     args = parser.parse_args()
     try:
-        tokenizer_path, sample_directory, reused = preprocess_data(
-            args.data_dir,
-            args.tokenizer_root,
-            args.output,
-            args.vocab_size,
-            args.min_frequency,
+        folds = (
+            [args.fold]
+            if args.fold is not None
+            else sorted(set(load_folds(args.data_dir)["fold"]))
         )
+        for fold in folds:
+            tokenizer_path, sample_directory, reused = preprocess_data(
+                args.data_dir,
+                args.tokenizer_root,
+                args.output,
+                args.vocab_size,
+                args.min_frequency,
+                fold=fold,
+            )
+            print(
+                f"Fold {fold}: {'reused' if reused else 'created'} {tokenizer_path}; "
+                f"samples in {sample_directory}"
+            )
     except (OSError, ValueError) as error:
         parser.exit(1, f"Preprocessing failed: {error}\n")
-    print(f"{'Reused' if reused else 'Created'} tokenizer: {tokenizer_path}")
-    for split in ("train", "val"):
-        print(f"{split}: {sample_directory / f'{split}.parquet'}")
 
 
 if __name__ == "__main__":

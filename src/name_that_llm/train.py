@@ -1,4 +1,4 @@
-"""Train and evaluate our own PyTorch classifiers on cached BPE document features."""
+"""Cross-validate our own PyTorch classifiers on cached BPE document features."""
 
 import argparse
 import json
@@ -35,7 +35,7 @@ from name_that_llm.config import (
     TrainingConfig,
     save_config,
 )
-from name_that_llm.data import LABELS
+from name_that_llm.data import LABELS, load_folds
 from name_that_llm.encodings import TFIDF, BagOfWords, Encoder, TokenIndicator
 from name_that_llm.preprocess import preprocess_data
 from name_that_llm.tokenizer import Tokenizer
@@ -171,7 +171,7 @@ def load_checkpoint(path: Path) -> tuple[nn.Module, dict]:
     return model.eval(), checkpoint
 
 
-def save_plots(labels, predictions, classes, report: dict, output: Path) -> None:
+def save_plots(labels, predictions, classes, report: dict, output: Path, n_folds: int) -> None:
     figure, axis = plt.subplots(figsize=(14, 12))
     ConfusionMatrixDisplay.from_predictions(
         labels,
@@ -183,7 +183,7 @@ def save_plots(labels, predictions, classes, report: dict, output: Path) -> None
         cmap="Blues",
         ax=axis,
     )
-    axis.set_title("Validation confusion matrix (fraction of each true class)")
+    axis.set_title(f"Out-of-fold confusion matrix ({n_folds} fold(s); fraction of each true class)")
     figure.tight_layout()
     figure.savefig(output / "confusion_matrix.png", dpi=150)
     plt.close(figure)
@@ -191,7 +191,7 @@ def save_plots(labels, predictions, classes, report: dict, output: Path) -> None
     figure, axis = plt.subplots(figsize=(10, max(4, len(classes) * 0.4)))
     axis.barh(classes, [report[label]["f1-score"] for label in classes])
     axis.invert_yaxis()
-    axis.set(xlim=(0, 1), xlabel="F1 score", title="Validation F1 by model")
+    axis.set(xlim=(0, 1), xlabel="F1 score", title="Out-of-fold F1 by model")
     figure.tight_layout()
     figure.savefig(output / "per_class_f1.png", dpi=150)
     plt.close(figure)
@@ -215,27 +215,26 @@ def save_learning_curves(history: list[dict], output: Path) -> None:
     plt.close(figure)
 
 
-def run(args: argparse.Namespace) -> None:
+SCORES = ("train_accuracy", "validation_accuracy", "validation_macro_f1", "validation_log_loss")
+
+
+def run_fold(
+    args: argparse.Namespace,
+    config: TrainingConfig,
+    mlp_config: MLPConfig,
+    tokenizer_config: TokenizerConfig,
+    fold: int,
+    output: Path,
+) -> tuple[dict, list[str], list[str]]:
+    """Train on every fold except `fold`, validate on `fold`, and save the model."""
     start = perf_counter()
-    config = TrainingConfig(
-        model=args.model,
-        encoder=args.encoder,
-        epochs=args.epochs,
-        batch_size=args.batch_size,
-        learning_rate=args.learning_rate,
-        weight_decay=args.weight_decay,
-        seed=args.seed,
-        limit_per_class=args.limit_per_class,
-    )
-    mlp_config = MLPConfig(hidden=tuple(args.hidden), activation=DEFAULT_MLP.activation)
-    tokenizer_config = TokenizerConfig(vocab_size=args.vocab_size, min_frequency=args.min_frequency)
-    print("Preparing BPE tokenizer and tokenized samples...", flush=True)
     tokenizer_path, sample_directory, reused = preprocess_data(
         directory=args.data_dir,
         tokenizer_root=args.tokenizer_root,
         output=args.tokenized_root,
         vocab_size=tokenizer_config.vocab_size,
         min_frequency=tokenizer_config.min_frequency,
+        fold=fold,
     )
     print(
         f"{'Reused' if reused else 'Created'} BPE tokenizer and samples: {tokenizer_path}",
@@ -268,18 +267,11 @@ def run(args: argparse.Namespace) -> None:
 
     train_logits = predict_logits(model, x_train, config.batch_size)
     val_logits = predict_logits(model, x_val, config.batch_size)
-    class_ids = list(range(len(LABELS)))
     val_predictions = val_logits.argmax(dim=1).numpy()
-    val_true_names = [LABELS[i] for i in y_val.tolist()]
-    val_predicted_names = [LABELS[i] for i in val_predictions]
-    report = classification_report(
-        val_true_names,
-        val_predicted_names,
-        labels=list(LABELS),
-        output_dict=True,
-        zero_division=0,
-    )
+    true_names = [LABELS[i] for i in y_val.tolist()]
+    predicted_names = [LABELS[i] for i in val_predictions]
     metrics = {
+        "fold": fold,
         **asdict(config),
         "mlp": asdict(mlp_config) if config.model == "mlp" else None,
         "tokenizer": "bpe",
@@ -297,26 +289,61 @@ def run(args: argparse.Namespace) -> None:
         # SVM scores are not probabilities, so log loss is undefined for it.
         "validation_log_loss": None
         if config.model == "svm"
-        else log_loss(y_val.numpy(), torch.softmax(val_logits, dim=1).numpy(), labels=class_ids),
+        else log_loss(
+            y_val.numpy(),
+            torch.softmax(val_logits, dim=1).numpy(),
+            labels=list(range(len(LABELS))),
+        ),
         "elapsed_seconds": perf_counter() - start,
         "history": history,
-        "classification_report": report,
     }
-    for name in (
-        "train_accuracy",
-        "validation_accuracy",
-        "validation_macro_f1",
-        "validation_log_loss",
-    ):
+    for name in SCORES:
         if metrics[name] is not None:
-            print(f"{name}: {metrics[name]:.4f}")
-    print(f"Training and evaluation: {metrics['elapsed_seconds']:.1f} seconds")
-    print("\nValidation classification report:")
-    print(
-        classification_report(
-            val_true_names, val_predicted_names, labels=list(LABELS), digits=3, zero_division=0
-        )
+            print(f"fold {fold} {name}: {metrics[name]:.4f}")
+
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+    save_checkpoint(
+        output / "model.pt", model, config, mlp_config, tokenizer_config, tokenizer_path, encoder
     )
+    save_learning_curves(history, output)
+    return metrics, true_names, predicted_names
+
+
+def summarise(results: list[dict]) -> dict:
+    """Mean and sample standard deviation of each score across folds."""
+    summary = {}
+    for name in SCORES:
+        values = [result[name] for result in results]
+        if any(value is None for value in values):
+            summary[name] = None
+            continue
+        summary[name] = {
+            "values": values,
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values, ddof=1)) if len(values) > 1 else 0.0,
+        }
+    return summary
+
+
+def run(args: argparse.Namespace) -> None:
+    start = perf_counter()
+    config = TrainingConfig(
+        model=args.model,
+        encoder=args.encoder,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        seed=args.seed,
+        limit_per_class=args.limit_per_class,
+    )
+    mlp_config = MLPConfig(hidden=tuple(args.hidden), activation=DEFAULT_MLP.activation)
+    tokenizer_config = TokenizerConfig(vocab_size=args.vocab_size, min_frequency=args.min_frequency)
+    available = sorted(set(load_folds(args.data_dir)["fold"]))
+    folds = available if args.fold is None else [args.fold]
+    if not set(folds) <= set(available):
+        raise ValueError(f"Fold {args.fold} does not exist. Folds: {available}.")
 
     args.output.mkdir(parents=True, exist_ok=True)
     save_config(
@@ -325,23 +352,48 @@ def run(args: argparse.Namespace) -> None:
         training=config,
         **({"mlp": mlp_config} if config.model == "mlp" else {}),
     )
-    (args.output / "metrics.json").write_text(
-        json.dumps(metrics, indent=2) + "\n", encoding="utf-8"
+    results, all_true, all_predicted = [], [], []
+    for position, fold in enumerate(folds, start=1):
+        print(f"\n===== Fold {fold} ({position}/{len(folds)}) =====", flush=True)
+        metrics, true_names, predicted_names = run_fold(
+            args, config, mlp_config, tokenizer_config, fold, args.output / f"fold-{fold}"
+        )
+        results.append(metrics)
+        all_true += true_names
+        all_predicted += predicted_names
+
+    # Every sample is validated once, so pooling the folds gives one out-of-fold prediction each.
+    report = classification_report(
+        all_true, all_predicted, labels=list(LABELS), output_dict=True, zero_division=0
     )
-    save_checkpoint(
-        args.output / "model.pt",
-        model,
-        config,
-        mlp_config,
-        tokenizer_config,
-        tokenizer_path,
-        encoder,
+    summary = {
+        "folds": folds,
+        "model": config.model,
+        "encoder": config.encoder,
+        "scores": summarise(results),
+        "elapsed_seconds": perf_counter() - start,
+        "pooled_out_of_fold_classification_report": report,
+    }
+    (args.output / "cv_metrics.json").write_text(
+        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
     )
-    save_plots(val_true_names, val_predicted_names, list(LABELS), report, args.output)
-    save_learning_curves(history, args.output)
+    save_plots(all_true, all_predicted, list(LABELS), report, args.output, len(folds))
+
+    print(f"\n===== {config.model} + {config.encoder}: {len(folds)}-fold summary =====")
+    for name in SCORES:
+        score = summary["scores"][name]
+        if score is not None:
+            print(f"{name:22s} mean {score['mean']:.4f}  std {score['std']:.4f}")
+    print(f"Total time: {summary['elapsed_seconds']:.1f} seconds")
+    print("\nPooled out-of-fold classification report:")
     print(
-        "Saved model.pt, config.json, metrics.json, confusion_matrix.png, "
-        f"per_class_f1.png, and learning_curves.png to {args.output}"
+        classification_report(
+            all_true, all_predicted, labels=list(LABELS), digits=3, zero_division=0
+        )
+    )
+    print(
+        f"Saved cv_metrics.json, config.json, confusion_matrix.png, per_class_f1.png, and "
+        f"fold-*/(model.pt, metrics.json, learning_curves.png) to {args.output}"
     )
 
 
@@ -351,8 +403,9 @@ def main() -> None:
         "--data-dir",
         type=Path,
         default=DATA_DIR,
-        help="Directory containing train.csv and val.csv",
+        help="Directory containing folds.csv",
     )
+    parser.add_argument("--fold", type=int, help="Run one fold only (default: every fold)")
     parser.add_argument("--tokenizer-root", type=Path, default=TOKENIZER_ROOT)
     parser.add_argument(
         "--tokenized-root",
@@ -399,6 +452,8 @@ def main() -> None:
         parser.error("--hidden sizes must be positive.")
     if args.limit_per_class is not None and args.limit_per_class < 1:
         parser.error("--limit-per-class must be positive.")
+    if args.fold is not None and args.fold < 0:
+        parser.error("--fold must not be negative.")
     try:
         run(args)
     except (OSError, ValueError) as error:

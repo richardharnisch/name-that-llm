@@ -1,4 +1,4 @@
-"""Download the public forum dataset and create deterministic train/validation files."""
+"""Download the public forum dataset and create deterministic cross-validation folds."""
 
 import argparse
 import csv
@@ -14,7 +14,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from name_that_llm.config import DATA_DIR
-from name_that_llm.data import write_data_splits
+from name_that_llm.data import fold_summary, write_data_splits
 
 DATASET = "prvsiyan/prvsiyans-extended-name-that-llm-dataset"
 DATASET_URL = f"https://www.kaggle.com/datasets/{DATASET}"
@@ -146,13 +146,13 @@ def main() -> None:
         "--split-output",
         type=Path,
         default=DATA_DIR,
-        help="Train/validation CSV directory",
+        help="Directory for folds.csv",
     )
     args = parser.parse_args()
     output = args.output or DATA_DIR / "raw" / f"extended-v{args.version}"
     try:
         manifest = download_dataset(output, args.version)
-        train, val = write_data_splits(output, args.split_output)
+        folds = write_data_splits(output, args.split_output)
     except HTTPError as error:
         parser.exit(
             1, f"Kaggle download failed (HTTP {error.code}). Check {DATASET_URL}\n"
@@ -168,8 +168,7 @@ def main() -> None:
         parser.exit(1, f"Download failed: {error}\n")
     print(f"Verified {DATASET}, version {manifest['version']}: {output}")
     print(f"Clean passages before baseline split filtering: {manifest['clean_rows']:,}")
-    print(f"Train: {len(train):,} rows -> {args.split_output / 'train.csv'}")
-    print(f"Validation: {len(val):,} rows -> {args.split_output / 'val.csv'}")
+    print(f"{len(folds):,} rows, {fold_summary(folds)} -> {args.split_output / 'folds.csv'}")
 
 
 if __name__ == "__main__":
