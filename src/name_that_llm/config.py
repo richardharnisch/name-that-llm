@@ -29,7 +29,9 @@ class TrainingConfig:
     # Train until the training loss stops improving, or until max_epochs. The validation
     # data never decides when to stop. Set tol to 0 to always train for max_epochs.
     max_epochs: int = 200
-    tol: float = 1e-3  # A new best training loss must beat the old best by this fraction.
+    # Converged = less than 1% training-loss improvement over 10 epochs. A new best loss must
+    # beat the old best by tol. For a smooth curve this means about tol / patience per epoch.
+    tol: float = 1e-2
     patience: int = 10  # Epochs without a new best that count as converged.
     batch_size: int = 64
     learning_rate: float = 1e-3

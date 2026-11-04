@@ -110,10 +110,14 @@ Document length carries almost no label information in this dataset: the model l
 explains less than 1% of the variation in token count.
 
 **Convergence.** Training stops when the training loss has not beaten its best value so far
-by at least the fraction `--tol` (default `0.001`) for `--patience` epochs (default `10`), or
-at `--max-epochs` (default `200`; `--epochs` is an alias). The comparison is with the best
-loss, not with the previous epoch, because the loss of each epoch is noisy (about 2% for the
-MLP once it plateaus). Use `--tol 0` to always train for `--max-epochs`. The validation data is evaluated each epoch for the learning curves only, and
+by at least the fraction `--tol` (default `0.01`) for `--patience` epochs (default `10`), or
+at `--max-epochs` (default `200`; `--epochs` is an alias). In words: less than 1% training-loss
+improvement over 10 epochs. The comparison is with the best loss, not with the previous
+epoch, because the loss of each epoch is noisy (about 2% for the MLP once it plateaus).
+Use `--tol 0` to always train for `--max-epochs`. The loss of a linear model on this
+separable data never stops decreasing completely, so any threshold is a choice. This one was
+fixed from training-loss curves only, before comparing validation scores. With it, all nine
+model and encoder combinations stopped between epochs 117 and 149 on fold 0, below the cap. The validation data is evaluated each epoch for the learning curves only, and
 never decides when to stop. The model of the last epoch is kept. Every run records whether it
 converged. A run that hits the epoch cap did not converge, and its score is not comparable
 with converged runs.
