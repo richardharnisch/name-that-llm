@@ -1,0 +1,11 @@
+{
+  "model": "distilroberta-base",
+  "train_rows": 20000,
+  "epochs": 1,
+  "train_seconds": 497.9070835420025,
+  "samples_per_second": 40.168137110491294,
+  "val_acc": 0.3068,
+  "val_macro_f1": 0.2082882785229301,
+  "test_acc": 0.3012,
+  "test_macro_f1": 0.1999985802961092
+}

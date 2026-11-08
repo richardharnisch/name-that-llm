@@ -1,0 +1,16 @@
+Some weights of RobertaForSequenceClassification were not initialized from the model checkpoint at distilroberta-base and are newly initialized: ['classifier.dense.bias', 'classifier.dense.weight', 'classifier.out_proj.bias', 'classifier.out_proj.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+You're using a RobertaTokenizerFast tokenizer. Please note that with a fast tokenizer, using the `__call__` method is faster than using a method to encode the text followed by a call to the `pad` method to get a padded encoding.
+step 50/625 loss 2.852 36.3 samples/s
+step 100/625 loss 2.390 39.2 samples/s
+step 150/625 loss 1.870 39.5 samples/s
+step 200/625 loss 2.176 38.5 samples/s
+step 250/625 loss 2.053 38.4 samples/s
+step 300/625 loss 2.046 39.0 samples/s
+step 350/625 loss 1.701 39.4 samples/s
+step 400/625 loss 2.003 39.2 samples/s
+step 450/625 loss 1.542 39.3 samples/s
+step 500/625 loss 1.709 39.9 samples/s
+step 550/625 loss 1.935 40.3 samples/s
+step 600/625 loss 1.771 40.2 samples/s
+{'model': 'distilroberta-base', 'train_rows': 20000, 'epochs': 1, 'train_seconds': 497.9070835420025, 'samples_per_second': 40.168137110491294, 'val_acc': 0.3068, 'val_macro_f1': 0.2082882785229301, 'test_acc': 0.3012, 'test_macro_f1': 0.1999985802961092}

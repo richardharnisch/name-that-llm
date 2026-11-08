@@ -1,0 +1,30 @@
+{
+  "score": "validation_accuracy",
+  "rope": 0.01,
+  "results": [
+    {
+      "a": "log-linear+token-indicator",
+      "b": "mlp+token-indicator",
+      "mean_difference": -0.09149027272964945,
+      "p_a_better": 5.2317299505129655e-06,
+      "p_rope": 7.294407277869119e-06,
+      "p_b_better": 0.9999874738627716
+    },
+    {
+      "a": "log-linear+token-indicator",
+      "b": "svm+token-indicator",
+      "mean_difference": 0.007482889494791057,
+      "p_a_better": 0.2585887136677055,
+      "p_rope": 0.7374691776608531,
+      "p_b_better": 0.003942108671441413
+    },
+    {
+      "a": "mlp+token-indicator",
+      "b": "svm+token-indicator",
+      "mean_difference": 0.0989731622244405,
+      "p_a_better": 0.9999996497809619,
+      "p_rope": 1.9446925537433397e-07,
+      "p_b_better": 1.5574978272894928e-07
+    }
+  ]
+}
