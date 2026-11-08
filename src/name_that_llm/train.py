@@ -12,6 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 import torch
 import torch.nn as nn
 from sklearn.metrics import (
@@ -56,7 +57,6 @@ def build_encoder(
         encoder = TFIDF(tokenizer, train_texts.to_numpy())
     return L2Normalized(encoder) if normalize else encoder
 
-
 def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> Encoder:
     """Rebuild the encoder a saved model was trained with."""
     name = checkpoint["encoder"]
@@ -65,14 +65,29 @@ def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> Encoder:
         return L2Normalized(encoder) if checkpoint.get("normalize", False) else encoder
     return build_encoder(name, tokenizer, pd.Series(dtype=str), checkpoint.get("normalize", False))
 
+def encode_sparse(input_ids: pd.Series, encoder: Encoder) -> sp.csr_matrix:
+    """Encode every document once from saved IDs, keeping only its non-zero entries.
 
-def encode_samples(input_ids: pd.Series, encoder: Encoder) -> torch.Tensor:
-    """Build dense document vectors from saved IDs without tokenizing again."""
-    features = np.zeros((len(input_ids), len(encoder)), dtype=np.float32)
-    for row, ids in enumerate(input_ids):
-        features[row] = encoder.from_ids(ids)
-    return torch.from_numpy(features)
+    The encoder is called per document, exactly as before, but only one dense vector exists at
+    a time. The full dense matrix (documents x vocabulary) is never built, so memory grows with
+    the number of tokens, not with documents x vocabulary size.
+    """
+    indices, data, indptr = [], [], [0]
+    for ids in input_ids:
+        vector = encoder.from_ids(ids)
+        nonzero = np.flatnonzero(vector)
+        indices.append(nonzero.astype(np.int32))
+        data.append(vector[nonzero].astype(np.float32))
+        indptr.append(indptr[-1] + len(nonzero))
+    return sp.csr_matrix(
+        (np.concatenate(data), np.concatenate(indices), np.asarray(indptr)),
+        shape=(len(input_ids), len(encoder)),
+    )
 
+
+def dense_batch(matrix: sp.csr_matrix, rows: np.ndarray | slice) -> torch.Tensor:
+    """Turn the chosen rows into a dense tensor. Only one batch is dense at a time."""
+    return torch.from_numpy(matrix[rows].toarray())
 
 def build_model(
     config: TrainingConfig, mlp_config: MLPConfig, d_in: int, n_classes: int
@@ -89,16 +104,21 @@ def build_loss(config: TrainingConfig) -> nn.Module:
 
 
 @torch.no_grad()
-def predict_logits(model: nn.Module, features: torch.Tensor, batch_size: int) -> torch.Tensor:
+def predict_logits(model: nn.Module, features: sp.csr_matrix, batch_size: int) -> torch.Tensor:
     model.eval()
-    return torch.cat([model(batch) for batch in features.split(batch_size)])
+    return torch.cat(
+        [
+            model(dense_batch(features, slice(start, start + batch_size)))
+            for start in range(0, features.shape[0], batch_size)
+        ]
+    )
 
 
 def fit(
     model: nn.Module,
-    x_train: torch.Tensor,
+    x_train: sp.csr_matrix,
     y_train: torch.Tensor,
-    x_val: torch.Tensor,
+    x_val: sp.csr_matrix,
     y_val: torch.Tensor,
     config: TrainingConfig,
 ) -> tuple[list[dict], bool]:
@@ -118,11 +138,11 @@ def fit(
     converged = False
     for epoch in range(1, config.max_epochs + 1):
         model.train()
-        order = torch.randperm(len(x_train), generator=generator)
+        order = torch.randperm(x_train.shape[0], generator=generator)
         total_loss = 0.0
         for batch in order.split(config.batch_size):
             optimizer.zero_grad()
-            loss = loss_function(model(x_train[batch]), y_train[batch])
+            loss = loss_function(model(dense_batch(x_train, batch.numpy())), y_train[batch])
             loss.backward()
             optimizer.step()
             total_loss += loss.item() * len(batch)
@@ -130,7 +150,7 @@ def fit(
         val_predictions = val_logits.argmax(dim=1).numpy()
         entry = {
             "epoch": epoch,
-            "train_loss": total_loss / len(x_train),
+            "train_loss": total_loss / x_train.shape[0],
             "validation_loss": loss_function(val_logits, y_val).item(),
             "validation_accuracy": accuracy_score(y_val.numpy(), val_predictions),
             "validation_macro_f1": f1_score(y_val.numpy(), val_predictions, average="macro"),
@@ -281,8 +301,8 @@ def run_fold(
     print(f"Train: {len(train):,} rows; validation: {len(val):,} rows", flush=True)
     encoder = build_encoder(config.encoder, tokenizer, train["text"], config.normalize)
     print(f"Encoder: {config.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
-    x_train = encode_samples(train["input_ids"], encoder)
-    x_val = encode_samples(val["input_ids"], encoder)
+    x_train = encode_sparse(train["input_ids"], encoder)
+    x_val = encode_sparse(val["input_ids"], encoder)
     y_train = torch.tensor(train["label"].to_numpy(), dtype=torch.long)
     y_val = torch.tensor(val["label"].to_numpy(), dtype=torch.long)
 

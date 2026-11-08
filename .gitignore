@@ -21,3 +21,8 @@ dist/
 .env.*
 kaggle.json
 .kaggle/
+/big-data-approach/data/
+/big-data-approach/artifacts/
+
+# macOS
+.DS_Store

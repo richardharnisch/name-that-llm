@@ -1,0 +1,26 @@
+{
+  "model": "distilroberta-base",
+  "train_rows": 169184,
+  "epochs": 3,
+  "epoch_scores": [
+    {
+      "epoch": 1,
+      "val_acc": 0.465933014354067
+    },
+    {
+      "epoch": 2,
+      "val_acc": 0.5036363636363637
+    },
+    {
+      "epoch": 3,
+      "val_acc": 0.5186124401913875
+    }
+  ],
+  "stopped_for_time": false,
+  "train_seconds": 12889.721584625,
+  "samples_per_second": 39.37649053687967,
+  "val_acc": 0.5186124401913875,
+  "val_macro_f1": 0.4787231802347944,
+  "test_acc": 0.5335196770043037,
+  "test_macro_f1": 0.4879026972398193
+}

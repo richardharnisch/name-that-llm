@@ -1,0 +1,30 @@
+{
+  "score": "validation_macro_f1",
+  "rope": 0.01,
+  "results": [
+    {
+      "a": "log-linear+token-indicator",
+      "b": "mlp+token-indicator",
+      "mean_difference": -0.13286988704008046,
+      "p_a_better": 2.2142354707499423e-06,
+      "p_rope": 1.825286615964039e-06,
+      "p_b_better": 0.9999959604779133
+    },
+    {
+      "a": "log-linear+token-indicator",
+      "b": "svm+token-indicator",
+      "mean_difference": 0.0061148654740287075,
+      "p_a_better": 0.22548758244825007,
+      "p_rope": 0.7616160088422727,
+      "p_b_better": 0.012896408709477268
+    },
+    {
+      "a": "mlp+token-indicator",
+      "b": "svm+token-indicator",
+      "mean_difference": 0.13898475251410913,
+      "p_a_better": 0.9999994936970973,
+      "p_rope": 2.216638236859998e-07,
+      "p_b_better": 2.846390790281399e-07
+    }
+  ]
+}
