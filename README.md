@@ -170,23 +170,23 @@ training set of that fold only, then tokenizes the training and validation sets 
 saves:
 
 ```text
-artifacts/tokenizers/bpe-vs-8000-mf-2/fold-K/tokenizer.json
-data/tokenized/bpe-vs-8000-mf-2/fold-K/train.parquet
-data/tokenized/bpe-vs-8000-mf-2/fold-K/val.parquet
-data/tokenized/bpe-vs-8000-mf-2/fold-K/preprocessing_manifest.json
+artifacts/tokenizers/bpe-vs-4000-mf-2/fold-K/tokenizer.json
+data/tokenized/bpe-vs-4000-mf-2/fold-K/train.parquet
+data/tokenized/bpe-vs-4000-mf-2/fold-K/val.parquet
+data/tokenized/bpe-vs-4000-mf-2/fold-K/preprocessing_manifest.json
 ```
 
 A separate tokenizer for each fold is necessary. A tokenizer fitted on all passages would
 learn its vocabulary and merge rules from the validation passages of every fold.
 
 This follows `../nlp1-student/part1/tutorial.ipynb`: Hugging Face `Tokenizer(BPE(...))`,
-`Metaspace` pretokenization, and `[UNK]`. The default vocabulary size is 8,000,
+`Metaspace` pretokenization, and `[UNK]`. The default vocabulary size is 4,000,
 with minimum pair frequency 2.
 There is no lowercasing or additional Unicode normalization. Unseen characters map to
 `[UNK]`. Samples are not padded or truncated, and no beginning/end tokens are added.
 
 Vocabulary size remains a hyperparameter to tune later using cross-validated accuracy
-and macro F1. Compare 1,000, 4,000, 8,000, and 16,000; 8,000 is a starting
+and macro F1. Compare 1,000, 4,000, 8,000, and 16,000; 4,000 is a starting
 point, not an established optimum.
 
 Each Parquet row retains the source columns and adds `input_ids` (a list of integer
@@ -211,8 +211,8 @@ import pandas as pd
 from name_that_llm.encodings import BagOfWords, TokenIndicator
 from name_that_llm.tokenizer import Tokenizer
 
-tokenizer = Tokenizer.from_file("artifacts/tokenizers/bpe-vs-8000-mf-2/fold-0/tokenizer.json")
-train = pd.read_parquet("data/tokenized/bpe-vs-8000-mf-2/fold-0/train.parquet")
+tokenizer = Tokenizer.from_file("artifacts/tokenizers/bpe-vs-4000-mf-2/fold-0/tokenizer.json")
+train = pd.read_parquet("data/tokenized/bpe-vs-4000-mf-2/fold-0/train.parquet")
 bow = BagOfWords(tokenizer)
 indicator = TokenIndicator(tokenizer)
 
