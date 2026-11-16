@@ -60,3 +60,33 @@ character TF-IDF or the pretrained tokenizer. Accuracy superiority of 4,000 is n
 established; previous 8,000-vocabulary experimental results remain historical.
 
 Model reference: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+
+## Completed results
+
+Five prompt-disjoint folds on 9,482 passages. Balanced accuracy (%).
+
+| Method | Frozen MiniLM | Character TF-IDF |
+|---|---:|---:|
+| independent | 10.19 | 19.03 |
+| shared_2 | 12.87 | 21.65 |
+| shared_3 | 13.85 | 23.24 |
+| logistic_full | 14.31 | 29.65 |
+| centered_3 | 12.98 | 20.68 |
+
+Both runs fail the independent-baseline gate. All ten Gaussian fits converged.
+Frozen semantic embeddings are substantially worse here than character features.
+This supports evaluating a supervised attribution backbone, not assuming that any
+pretrained representation improves the task. A fine-tuned comparison remains outstanding.
+
+Family error decomposition for full-feature logistic regression, macro over authors:
+
+| Representation | Exact author | Same provider | Sibling error | Other family, same provider error | Cross-provider error |
+|---|---:|---:|---:|---:|---:|
+| minilm-expanded | 14.31 | 42.44 | 11.38 | 16.75 | 57.56 |
+| char-expanded | 29.65 | 63.28 | 15.33 | 18.30 | 36.72 |
+
+These are unconditional error shares, not accuracy with the true family supplied.
+Cross-provider errors remain substantial; provider recognition is not solved by these
+classifiers. This does not refute that some provider pairs are easier than sibling pairs.
+Per-author recalls and operational family breakdowns are saved in the result JSON.
+No hierarchical-classifier advantage has been demonstrated.
