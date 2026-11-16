@@ -60,3 +60,24 @@ against the direct head and full-vector classifier. No full-CV commitment follow
 from a pipeline smoke test. Keep family diagnostics descriptive until a controlled
 hierarchical-objective comparison is justified. A null result should stop expansion
 of prompt machinery, not trigger validation-set hyperparameter search.
+
+## Reproduce the supervised pilot
+
+```sh
+HF_HOME=models/huggingface uv run python -m name_that_llm.research.finetune \
+  --data-dir data/extended-v13-expanded --fold 0 \
+  --output artifacts/prompt-effects/supervised/fold-0
+uv run python -m name_that_llm.research.run \
+  --data-dir data/extended-v13-expanded --features embeddings \
+  --fold-artifacts artifacts/prompt-effects/supervised --fold 0 \
+  --max-iter 1500 --output artifacts/prompt-effects/supervised-evaluation
+uv run python -m name_that_llm.research.families \
+  artifacts/prompt-effects/supervised-evaluation
+```
+
+The backbone must already be cached at the requested revision. Existing output
+folders are not overwritten. For a later full run, train `fold-0` through `fold-4`
+separately, then omit `--fold` from evaluation. Do not rename one fold's output to
+fill another slot: the loader verifies both the fold and its exact ID partitions.
+All artifacts and weights remain ignored by Git. The archived result summary is
+separate from those large local outputs.

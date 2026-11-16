@@ -1,0 +1,2392 @@
+{
+  "scope": "Fold 0 development pilot; not full cross-validation",
+  "training": {
+    "schema_version": 1,
+    "status": "complete",
+    "fold": 0,
+    "folds_sha256": "6a1031984327c7e802405d3efaf552f0e73b3386631273fe080aba1b33ba0b63",
+    "model": "sentence-transformers/all-MiniLM-L6-v2",
+    "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+    "epochs_requested": 3,
+    "epochs_completed": 3,
+    "completed_training": true,
+    "seed": 42,
+    "pooling": "masked_mean_l2",
+    "truncated_rows": 1022,
+    "device": "cpu",
+    "arguments": {
+      "data_dir": "data/extended-v13-expanded",
+      "output": "artifacts/prompt-effects/supervised/fold-0",
+      "fold": 0,
+      "model": "sentence-transformers/all-MiniLM-L6-v2",
+      "revision": "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+      "cache_dir": "models/huggingface",
+      "device": "auto",
+      "epochs": 3,
+      "batch_size": 16,
+      "max_length": 256,
+      "threads": 2,
+      "seed": 42,
+      "learning_rate": 2e-05,
+      "head_learning_rate": 0.001,
+      "weight_decay": 0.01,
+      "max_steps": null
+    },
+    "steps_completed": 1425,
+    "embeddings_sha256": "f4e7bc6de81a72dbdb387f080a5d60943e8cb0fb8bddadc9902c5dc86acb6640",
+    "classifier_predictions_sha256": "f75f6e04d7d4e6d71bd458498aab6dcd1aa97c063b4b8c98ab9a633761b96418",
+    "checkpoint": "checkpoint.pt"
+  },
+  "train_rows": 7596,
+  "validation_rows": 1886,
+  "metrics": {
+    "pooled": {
+      "centered_2": {
+        "balanced_accuracy": 0.26653595574034733,
+        "accuracy": 0.26599505125486034,
+        "log_loss": 2.2442320050146622,
+        "recall_by_class": {
+          "claude-fable-5": 0.14074074074074072,
+          "claude-opus-4-6": 0.43693693693693697,
+          "claude-opus-4-8": 0.20833333333333334,
+          "claude-opus-5": 0.43859649122807015,
+          "claude-sonnet-5": 0.4480286738351254,
+          "gemini-3.1-pro-preview": 0.48697916666666663,
+          "gemini-3.6-flash": 0.1402116402116402,
+          "gemini-3.7-flash": 0.2051282051282051,
+          "gemini-3.8-flash": 0.28225806451612906,
+          "glm-5.3": 0.1391941391941392,
+          "glm-5.3-flash": 0.1925925925925926,
+          "gpt-5.5": 0.30158730158730157,
+          "gpt-5.6-luna": 0.208,
+          "gpt-5.6-sol": 0.12947658402203857,
+          "gpt-5.6-terra": 0.12962962962962962,
+          "gpt-6-astra": 0.44166666666666665,
+          "kimi-k3": 0.15925925925925924,
+          "qwen3.8-max": 0.30902777777777773
+        },
+        "rows": 1886
+      },
+      "centered_3": {
+        "balanced_accuracy": 0.28761407335871897,
+        "accuracy": 0.2863202545068929,
+        "log_loss": 2.205558342985709,
+        "recall_by_class": {
+          "claude-fable-5": 0.20740740740740737,
+          "claude-opus-4-6": 0.46846846846846846,
+          "claude-opus-4-8": 0.22083333333333335,
+          "claude-opus-5": 0.4421052631578947,
+          "claude-sonnet-5": 0.4838709677419355,
+          "gemini-3.1-pro-preview": 0.5494791666666666,
+          "gemini-3.6-flash": 0.1746031746031746,
+          "gemini-3.7-flash": 0.31135531135531136,
+          "gemini-3.8-flash": 0.3064516129032258,
+          "glm-5.3": 0.15384615384615385,
+          "glm-5.3-flash": 0.18518518518518515,
+          "gpt-5.5": 0.31216931216931215,
+          "gpt-5.6-luna": 0.22133333333333333,
+          "gpt-5.6-sol": 0.10743801652892562,
+          "gpt-5.6-terra": 0.11375661375661375,
+          "gpt-6-astra": 0.45555555555555555,
+          "kimi-k3": 0.13333333333333333,
+          "qwen3.8-max": 0.3298611111111111
+        },
+        "rows": 1886
+      },
+      "finetuned_head": {
+        "balanced_accuracy": 0.2234657251934594,
+        "accuracy": 0.22481442205726404,
+        "log_loss": 2.0347744193587802,
+        "recall_by_class": {
+          "claude-fable-5": 0.1111111111111111,
+          "claude-opus-4-6": 0.6756756756756757,
+          "claude-opus-4-8": 0.1,
+          "claude-opus-5": 0.6842105263157895,
+          "claude-sonnet-5": 0.25806451612903225,
+          "gemini-3.1-pro-preview": 0.0390625,
+          "gemini-3.6-flash": 0.0,
+          "gemini-3.7-flash": 0.0,
+          "gemini-3.8-flash": 0.967741935483871,
+          "glm-5.3": 0.01098901098901099,
+          "glm-5.3-flash": 0.0,
+          "gpt-5.5": 0.16666666666666666,
+          "gpt-5.6-luna": 0.304,
+          "gpt-5.6-sol": 0.0,
+          "gpt-5.6-terra": 0.0,
+          "gpt-6-astra": 0.6,
+          "kimi-k3": 0.011111111111111112,
+          "qwen3.8-max": 0.09375
+        },
+        "rows": 1886
+      },
+      "independent": {
+        "balanced_accuracy": 0.27193871061388714,
+        "accuracy": 0.27465535524920465,
+        "log_loss": 3.7297254621921847,
+        "recall_by_class": {
+          "claude-fable-5": 0.2,
+          "claude-opus-4-6": 0.43243243243243246,
+          "claude-opus-4-8": 0.125,
+          "claude-opus-5": 0.4631578947368421,
+          "claude-sonnet-5": 0.41935483870967744,
+          "gemini-3.1-pro-preview": 0.5859375,
+          "gemini-3.6-flash": 0.15079365079365079,
+          "gemini-3.7-flash": 0.3076923076923077,
+          "gemini-3.8-flash": 0.3548387096774194,
+          "glm-5.3": 0.15384615384615385,
+          "glm-5.3-flash": 0.1,
+          "gpt-5.5": 0.3412698412698413,
+          "gpt-5.6-luna": 0.168,
+          "gpt-5.6-sol": 0.05785123966942149,
+          "gpt-5.6-terra": 0.16666666666666666,
+          "gpt-6-astra": 0.4666666666666667,
+          "kimi-k3": 0.08888888888888889,
+          "qwen3.8-max": 0.3125
+        },
+        "rows": 1886
+      },
+      "lda": {
+        "balanced_accuracy": 0.2710516340430582,
+        "accuracy": 0.27200424178154825,
+        "log_loss": 3.276974409958409,
+        "recall_by_class": {
+          "claude-fable-5": 0.18888888888888888,
+          "claude-opus-4-6": 0.40540540540540543,
+          "claude-opus-4-8": 0.1625,
+          "claude-opus-5": 0.4105263157894737,
+          "claude-sonnet-5": 0.46236559139784944,
+          "gemini-3.1-pro-preview": 0.546875,
+          "gemini-3.6-flash": 0.1349206349206349,
+          "gemini-3.7-flash": 0.31868131868131866,
+          "gemini-3.8-flash": 0.31451612903225806,
+          "glm-5.3": 0.15384615384615385,
+          "glm-5.3-flash": 0.16666666666666666,
+          "gpt-5.5": 0.31746031746031744,
+          "gpt-5.6-luna": 0.184,
+          "gpt-5.6-sol": 0.0743801652892562,
+          "gpt-5.6-terra": 0.15873015873015872,
+          "gpt-6-astra": 0.4583333333333333,
+          "kimi-k3": 0.06666666666666667,
+          "qwen3.8-max": 0.3541666666666667
+        },
+        "rows": 1886
+      },
+      "logistic_dense": {
+        "balanced_accuracy": 0.28085603768518114,
+        "accuracy": 0.28207847295864263,
+        "log_loss": 1.9109962385914547,
+        "recall_by_class": {
+          "claude-fable-5": 0.16666666666666666,
+          "claude-opus-4-6": 0.44594594594594594,
+          "claude-opus-4-8": 0.15,
+          "claude-opus-5": 0.47368421052631576,
+          "claude-sonnet-5": 0.46236559139784944,
+          "gemini-3.1-pro-preview": 0.578125,
+          "gemini-3.6-flash": 0.10317460317460317,
+          "gemini-3.7-flash": 0.32967032967032966,
+          "gemini-3.8-flash": 0.31451612903225806,
+          "glm-5.3": 0.13186813186813187,
+          "glm-5.3-flash": 0.15555555555555556,
+          "gpt-5.5": 0.31746031746031744,
+          "gpt-5.6-luna": 0.264,
+          "gpt-5.6-sol": 0.0743801652892562,
+          "gpt-5.6-terra": 0.14285714285714285,
+          "gpt-6-astra": 0.49166666666666664,
+          "kimi-k3": 0.08888888888888889,
+          "qwen3.8-max": 0.3645833333333333
+        },
+        "rows": 1886
+      },
+      "logistic_full": {
+        "balanced_accuracy": 0.29564003134552697,
+        "accuracy": 0.2979851537645811,
+        "log_loss": 1.8848943894171055,
+        "recall_by_class": {
+          "claude-fable-5": 0.15555555555555556,
+          "claude-opus-4-6": 0.43243243243243246,
+          "claude-opus-4-8": 0.1875,
+          "claude-opus-5": 0.4842105263157895,
+          "claude-sonnet-5": 0.4838709677419355,
+          "gemini-3.1-pro-preview": 0.6015625,
+          "gemini-3.6-flash": 0.15873015873015872,
+          "gemini-3.7-flash": 0.31868131868131866,
+          "gemini-3.8-flash": 0.3225806451612903,
+          "glm-5.3": 0.16483516483516483,
+          "glm-5.3-flash": 0.15555555555555556,
+          "gpt-5.5": 0.373015873015873,
+          "gpt-5.6-luna": 0.256,
+          "gpt-5.6-sol": 0.08264462809917356,
+          "gpt-5.6-terra": 0.12698412698412698,
+          "gpt-6-astra": 0.5416666666666666,
+          "kimi-k3": 0.1111111111111111,
+          "qwen3.8-max": 0.3645833333333333
+        },
+        "rows": 1886
+      },
+      "shared_2": {
+        "balanced_accuracy": 0.275949058760011,
+        "accuracy": 0.27925061859314243,
+        "log_loss": 3.707399145190133,
+        "recall_by_class": {
+          "claude-fable-5": 0.20740740740740743,
+          "claude-opus-4-6": 0.44594594594594594,
+          "claude-opus-4-8": 0.125,
+          "claude-opus-5": 0.4666666666666667,
+          "claude-sonnet-5": 0.4265232974910394,
+          "gemini-3.1-pro-preview": 0.5885416666666666,
+          "gemini-3.6-flash": 0.12962962962962962,
+          "gemini-3.7-flash": 0.28205128205128205,
+          "gemini-3.8-flash": 0.3736559139784946,
+          "glm-5.3": 0.1282051282051282,
+          "glm-5.3-flash": 0.1111111111111111,
+          "gpt-5.5": 0.373015873015873,
+          "gpt-5.6-luna": 0.192,
+          "gpt-5.6-sol": 0.06336088154269973,
+          "gpt-5.6-terra": 0.16137566137566137,
+          "gpt-6-astra": 0.4805555555555555,
+          "kimi-k3": 0.0925925925925926,
+          "qwen3.8-max": 0.3194444444444445
+        },
+        "rows": 1886
+      },
+      "shared_3": {
+        "balanced_accuracy": 0.27523858573256305,
+        "accuracy": 0.27854365500176737,
+        "log_loss": 3.695381532738293,
+        "recall_by_class": {
+          "claude-fable-5": 0.1962962962962963,
+          "claude-opus-4-6": 0.43693693693693697,
+          "claude-opus-4-8": 0.1375,
+          "claude-opus-5": 0.47368421052631576,
+          "claude-sonnet-5": 0.4336917562724015,
+          "gemini-3.1-pro-preview": 0.5989583333333334,
+          "gemini-3.6-flash": 0.12698412698412698,
+          "gemini-3.7-flash": 0.2783882783882784,
+          "gemini-3.8-flash": 0.3602150537634408,
+          "glm-5.3": 0.11721611721611722,
+          "glm-5.3-flash": 0.12222222222222222,
+          "gpt-5.5": 0.36772486772486773,
+          "gpt-5.6-luna": 0.19466666666666665,
+          "gpt-5.6-sol": 0.06887052341597796,
+          "gpt-5.6-terra": 0.15343915343915343,
+          "gpt-6-astra": 0.4861111111111111,
+          "kimi-k3": 0.08888888888888889,
+          "qwen3.8-max": 0.3125
+        },
+        "rows": 1886
+      },
+      "shuffled_2": {
+        "balanced_accuracy": 0.27072584512805753,
+        "accuracy": 0.27271120537292326,
+        "log_loss": 3.769856705116015,
+        "recall_by_class": {
+          "claude-fable-5": 0.2,
+          "claude-opus-4-6": 0.43693693693693697,
+          "claude-opus-4-8": 0.12916666666666668,
+          "claude-opus-5": 0.45964912280701753,
+          "claude-sonnet-5": 0.4372759856630824,
+          "gemini-3.1-pro-preview": 0.5807291666666666,
+          "gemini-3.6-flash": 0.1349206349206349,
+          "gemini-3.7-flash": 0.28937728937728935,
+          "gemini-3.8-flash": 0.3172043010752688,
+          "glm-5.3": 0.1391941391941392,
+          "glm-5.3-flash": 0.1148148148148148,
+          "gpt-5.5": 0.34656084656084657,
+          "gpt-5.6-luna": 0.17866666666666667,
+          "gpt-5.6-sol": 0.05509641873278237,
+          "gpt-5.6-terra": 0.14814814814814817,
+          "gpt-6-astra": 0.48333333333333334,
+          "kimi-k3": 0.08518518518518518,
+          "qwen3.8-max": 0.3368055555555556
+        },
+        "rows": 1886
+      },
+      "shuffled_3": {
+        "balanced_accuracy": 0.273415113079702,
+        "accuracy": 0.27518557794273596,
+        "log_loss": 3.793500403008351,
+        "recall_by_class": {
+          "claude-fable-5": 0.2,
+          "claude-opus-4-6": 0.44594594594594594,
+          "claude-opus-4-8": 0.1375,
+          "claude-opus-5": 0.45263157894736844,
+          "claude-sonnet-5": 0.4480286738351254,
+          "gemini-3.1-pro-preview": 0.5859375,
+          "gemini-3.6-flash": 0.14285714285714285,
+          "gemini-3.7-flash": 0.2857142857142857,
+          "gemini-3.8-flash": 0.3387096774193548,
+          "glm-5.3": 0.1391941391941392,
+          "glm-5.3-flash": 0.11851851851851851,
+          "gpt-5.5": 0.33068783068783064,
+          "gpt-5.6-luna": 0.17066666666666666,
+          "gpt-5.6-sol": 0.05785123966942149,
+          "gpt-5.6-terra": 0.15079365079365079,
+          "gpt-6-astra": 0.4805555555555555,
+          "kimi-k3": 0.08518518518518518,
+          "qwen3.8-max": 0.3506944444444444
+        },
+        "rows": 1886
+      }
+    },
+    "comparisons": [
+      {
+        "method": "shared_2",
+        "baseline": "independent",
+        "delta_balanced_accuracy": 0.004010348146123877,
+        "ci90": [
+          -0.001688802616275111,
+          0.009548150267019632
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "logistic_full",
+        "delta_balanced_accuracy": -0.019690972585515967,
+        "ci90": [
+          -0.03283931636812311,
+          -0.0060787585272813515
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "logistic_dense",
+        "delta_balanced_accuracy": -0.0049069789251701785,
+        "ci90": [
+          -0.016072315128085036,
+          0.005955697098162193
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "lda",
+        "delta_balanced_accuracy": 0.004897424716952762,
+        "ci90": [
+          -0.004582189751876656,
+          0.014670399194757528
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "centered_2",
+        "delta_balanced_accuracy": 0.00941310301966365,
+        "ci90": [
+          -0.002079511731952047,
+          0.020219183564213455
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "shuffled_2",
+        "delta_balanced_accuracy": 0.0052232136319535155,
+        "ci90": [
+          0.0006575100388193447,
+          0.009604336360893766
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "finetuned_head",
+        "delta_balanced_accuracy": 0.05248333356655166,
+        "ci90": [
+          0.03841785053593305,
+          0.06650622230977876
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "independent",
+        "delta_balanced_accuracy": 0.0032998751186759214,
+        "ci90": [
+          -0.0031371933678506895,
+          0.009831096687211603
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "logistic_full",
+        "delta_balanced_accuracy": -0.020401445612963916,
+        "ci90": [
+          -0.03352259290118049,
+          -0.006569568785645753
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "logistic_dense",
+        "delta_balanced_accuracy": -0.005617451952618134,
+        "ci90": [
+          -0.016662558772762643,
+          0.005411329674601382
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "lda",
+        "delta_balanced_accuracy": 0.004186951689504805,
+        "ci90": [
+          -0.005711719218081852,
+          0.014110081012504806
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "centered_3",
+        "delta_balanced_accuracy": -0.012375487626155911,
+        "ci90": [
+          -0.023423473455357398,
+          -0.0012086698482736723
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "shuffled_3",
+        "delta_balanced_accuracy": 0.0018234726528610838,
+        "ci90": [
+          -0.0032729366017881117,
+          0.007385708079713608
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "finetuned_head",
+        "delta_balanced_accuracy": 0.05177286053910372,
+        "ci90": [
+          0.03803667804623103,
+          0.06540720208948181
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 132,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      }
+    ],
+    "initial_gate_criteria": {
+      "shared_2": {
+        "gain_at_least_one_point": false,
+        "positive_paired_ci90": false,
+        "beats_all_standalone_baselines": false,
+        "beats_simple_centering": true,
+        "shuffle_removes_at_least_half_gain": true
+      },
+      "shared_3": {
+        "gain_at_least_one_point": false,
+        "positive_paired_ci90": false,
+        "beats_all_standalone_baselines": false,
+        "beats_simple_centering": false,
+        "shuffle_removes_at_least_half_gain": true
+      }
+    },
+    "initial_gate_passed": false,
+    "complete_cross_validation": false,
+    "elapsed_seconds": 25.084941375011113
+  },
+  "families": {
+    "centered_2": {
+      "macro_over_authors": {
+        "exact": 0.26653595574034733,
+        "same_family": 0.4030220491806432,
+        "same_provider": 0.635495470267942,
+        "sibling_error": 0.13648609344029589,
+        "other_family_error": 0.23247342108729865,
+        "other_provider_error": 0.36450452973205816
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.14074074074074072,
+          "same_family": 0.14074074074074072,
+          "same_provider": 0.5666666666666667,
+          "sibling_error": 0.0,
+          "other_family_error": 0.42592592592592593,
+          "other_provider_error": 0.43333333333333335
+        },
+        "claude-opus-4-6": {
+          "exact": 0.43693693693693697,
+          "same_family": 0.545045045045045,
+          "same_provider": 0.7927927927927928,
+          "sibling_error": 0.10810810810810811,
+          "other_family_error": 0.24774774774774774,
+          "other_provider_error": 0.2072072072072072
+        },
+        "claude-opus-4-8": {
+          "exact": 0.20833333333333334,
+          "same_family": 0.4666666666666667,
+          "same_provider": 0.7,
+          "sibling_error": 0.2583333333333333,
+          "other_family_error": 0.23333333333333334,
+          "other_provider_error": 0.3
+        },
+        "claude-opus-5": {
+          "exact": 0.43859649122807015,
+          "same_family": 0.456140350877193,
+          "same_provider": 0.6385964912280702,
+          "sibling_error": 0.017543859649122806,
+          "other_family_error": 0.18245614035087718,
+          "other_provider_error": 0.36140350877192984
+        },
+        "claude-sonnet-5": {
+          "exact": 0.4480286738351254,
+          "same_family": 0.4480286738351254,
+          "same_provider": 0.7777777777777777,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3297491039426523,
+          "other_provider_error": 0.2222222222222222
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.48697916666666663,
+          "same_family": 0.48697916666666663,
+          "same_provider": 0.8359375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3489583333333333,
+          "other_provider_error": 0.1640625
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.1402116402116402,
+          "same_family": 0.4656084656084656,
+          "same_provider": 0.7724867724867724,
+          "sibling_error": 0.3253968253968254,
+          "other_family_error": 0.30687830687830686,
+          "other_provider_error": 0.2275132275132275
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.2051282051282051,
+          "same_family": 0.5970695970695971,
+          "same_provider": 0.7875457875457876,
+          "sibling_error": 0.39194139194139194,
+          "other_family_error": 0.19047619047619047,
+          "other_provider_error": 0.21245421245421245
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.28225806451612906,
+          "same_family": 0.5940860215053764,
+          "same_provider": 0.8037634408602151,
+          "sibling_error": 0.3118279569892473,
+          "other_family_error": 0.20967741935483872,
+          "other_provider_error": 0.19623655913978494
+        },
+        "glm-5.3": {
+          "exact": 0.1391941391941392,
+          "same_family": 0.3516483516483517,
+          "same_provider": 0.3516483516483517,
+          "sibling_error": 0.21245421245421245,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6483516483516484
+        },
+        "glm-5.3-flash": {
+          "exact": 0.1925925925925926,
+          "same_family": 0.32222222222222224,
+          "same_provider": 0.32222222222222224,
+          "sibling_error": 0.12962962962962962,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6777777777777778
+        },
+        "gpt-5.5": {
+          "exact": 0.30158730158730157,
+          "same_family": 0.30158730158730157,
+          "same_provider": 0.7037037037037037,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4021164021164021,
+          "other_provider_error": 0.2962962962962963
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.208,
+          "same_family": 0.4693333333333333,
+          "same_provider": 0.7413333333333334,
+          "sibling_error": 0.2613333333333333,
+          "other_family_error": 0.272,
+          "other_provider_error": 0.25866666666666666
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.12947658402203857,
+          "same_family": 0.35537190082644626,
+          "same_provider": 0.7024793388429752,
+          "sibling_error": 0.2258953168044077,
+          "other_family_error": 0.34710743801652894,
+          "other_provider_error": 0.2975206611570248
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.12962962962962962,
+          "same_family": 0.3439153439153439,
+          "same_provider": 0.6931216931216931,
+          "sibling_error": 0.21428571428571427,
+          "other_family_error": 0.3492063492063492,
+          "other_provider_error": 0.30687830687830686
+        },
+        "gpt-6-astra": {
+          "exact": 0.44166666666666665,
+          "same_family": 0.44166666666666665,
+          "same_provider": 0.7805555555555556,
+          "sibling_error": 0.0,
+          "other_family_error": 0.33888888888888885,
+          "other_provider_error": 0.21944444444444444
+        },
+        "kimi-k3": {
+          "exact": 0.15925925925925924,
+          "same_family": 0.15925925925925924,
+          "same_provider": 0.15925925925925924,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.8407407407407408
+        },
+        "qwen3.8-max": {
+          "exact": 0.30902777777777773,
+          "same_family": 0.30902777777777773,
+          "same_provider": 0.30902777777777773,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6909722222222222
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.14074074074074072,
+        "claude-opus": 0.3612889204994468,
+        "claude-sonnet": 0.4480286738351254,
+        "gemini-3.1-pro-preview": 0.48697916666666663,
+        "gemini-flash": 0.20919930328532477,
+        "glm-5.3": 0.1658933658933659,
+        "gpt-5.5": 0.30158730158730157,
+        "gpt-5.6": 0.1557020712172227,
+        "gpt-6-astra": 0.44166666666666665,
+        "kimi-k3": 0.15925925925925924,
+        "qwen3.8-max": 0.30902777777777773
+      }
+    },
+    "centered_3": {
+      "macro_over_authors": {
+        "exact": 0.28761407335871897,
+        "same_family": 0.43354932867505597,
+        "same_provider": 0.6691040795927824,
+        "sibling_error": 0.14593525531633694,
+        "other_family_error": 0.23555475091772646,
+        "other_provider_error": 0.33089592040721766
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.20740740740740737,
+          "same_family": 0.20740740740740737,
+          "same_provider": 0.5962962962962963,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3888888888888889,
+          "other_provider_error": 0.40370370370370373
+        },
+        "claude-opus-4-6": {
+          "exact": 0.46846846846846846,
+          "same_family": 0.5720720720720721,
+          "same_provider": 0.8378378378378378,
+          "sibling_error": 0.1036036036036036,
+          "other_family_error": 0.26576576576576577,
+          "other_provider_error": 0.16216216216216217
+        },
+        "claude-opus-4-8": {
+          "exact": 0.22083333333333335,
+          "same_family": 0.4833333333333333,
+          "same_provider": 0.7166666666666667,
+          "sibling_error": 0.2625,
+          "other_family_error": 0.23333333333333334,
+          "other_provider_error": 0.2833333333333333
+        },
+        "claude-opus-5": {
+          "exact": 0.4421052631578947,
+          "same_family": 0.4456140350877193,
+          "same_provider": 0.6070175438596491,
+          "sibling_error": 0.003508771929824561,
+          "other_family_error": 0.1614035087719298,
+          "other_provider_error": 0.3929824561403509
+        },
+        "claude-sonnet-5": {
+          "exact": 0.4838709677419355,
+          "same_family": 0.4838709677419355,
+          "same_provider": 0.7849462365591398,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3010752688172043,
+          "other_provider_error": 0.21505376344086022
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.5494791666666666,
+          "same_family": 0.5494791666666666,
+          "same_provider": 0.9270833333333334,
+          "sibling_error": 0.0,
+          "other_family_error": 0.37760416666666663,
+          "other_provider_error": 0.07291666666666666
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.1746031746031746,
+          "same_family": 0.5793650793650794,
+          "same_provider": 0.8809523809523809,
+          "sibling_error": 0.40476190476190477,
+          "other_family_error": 0.30158730158730157,
+          "other_provider_error": 0.11904761904761904
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.31135531135531136,
+          "same_family": 0.6556776556776557,
+          "same_provider": 0.8571428571428571,
+          "sibling_error": 0.3443223443223443,
+          "other_family_error": 0.20146520146520144,
+          "other_provider_error": 0.14285714285714285
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.3064516129032258,
+          "same_family": 0.6586021505376345,
+          "same_provider": 0.8817204301075269,
+          "sibling_error": 0.35215053763440857,
+          "other_family_error": 0.22311827956989244,
+          "other_provider_error": 0.11827956989247311
+        },
+        "glm-5.3": {
+          "exact": 0.15384615384615385,
+          "same_family": 0.3699633699633699,
+          "same_provider": 0.3699633699633699,
+          "sibling_error": 0.21611721611721613,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.63003663003663
+        },
+        "glm-5.3-flash": {
+          "exact": 0.18518518518518515,
+          "same_family": 0.3185185185185185,
+          "same_provider": 0.3185185185185185,
+          "sibling_error": 0.13333333333333333,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6814814814814815
+        },
+        "gpt-5.5": {
+          "exact": 0.31216931216931215,
+          "same_family": 0.31216931216931215,
+          "same_provider": 0.701058201058201,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3888888888888889,
+          "other_provider_error": 0.2989417989417989
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.22133333333333333,
+          "same_family": 0.5226666666666666,
+          "same_provider": 0.7893333333333333,
+          "sibling_error": 0.30133333333333334,
+          "other_family_error": 0.26666666666666666,
+          "other_provider_error": 0.21066666666666667
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.10743801652892562,
+          "same_family": 0.371900826446281,
+          "same_provider": 0.7493112947658402,
+          "sibling_error": 0.2644628099173554,
+          "other_family_error": 0.3774104683195592,
+          "other_provider_error": 0.25068870523415976
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.11375661375661375,
+          "same_family": 0.3544973544973545,
+          "same_provider": 0.7433862433862434,
+          "sibling_error": 0.24074074074074073,
+          "other_family_error": 0.3888888888888889,
+          "other_provider_error": 0.25661375661375657
+        },
+        "gpt-6-astra": {
+          "exact": 0.45555555555555555,
+          "same_family": 0.45555555555555555,
+          "same_provider": 0.8194444444444444,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3638888888888889,
+          "other_provider_error": 0.18055555555555555
+        },
+        "kimi-k3": {
+          "exact": 0.13333333333333333,
+          "same_family": 0.13333333333333333,
+          "same_provider": 0.13333333333333333,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.8666666666666667
+        },
+        "qwen3.8-max": {
+          "exact": 0.3298611111111111,
+          "same_family": 0.3298611111111111,
+          "same_provider": 0.3298611111111111,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6701388888888888
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.20740740740740737,
+        "claude-opus": 0.37713568831989885,
+        "claude-sonnet": 0.4838709677419355,
+        "gemini-3.1-pro-preview": 0.5494791666666666,
+        "gemini-flash": 0.26413669962057057,
+        "glm-5.3": 0.1695156695156695,
+        "gpt-5.5": 0.31216931216931215,
+        "gpt-5.6": 0.1475093212062909,
+        "gpt-6-astra": 0.45555555555555555,
+        "kimi-k3": 0.13333333333333333,
+        "qwen3.8-max": 0.3298611111111111
+      }
+    },
+    "finetuned_head": {
+      "macro_over_authors": {
+        "exact": 0.22346572519345934,
+        "same_family": 0.39484287870777396,
+        "same_provider": 0.7029283980921307,
+        "sibling_error": 0.1713771535143146,
+        "other_family_error": 0.30808551938435663,
+        "other_provider_error": 0.2970716019078694
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.1111111111111111,
+          "same_family": 0.1111111111111111,
+          "same_provider": 0.8888888888888888,
+          "sibling_error": 0.0,
+          "other_family_error": 0.7777777777777778,
+          "other_provider_error": 0.1111111111111111
+        },
+        "claude-opus-4-6": {
+          "exact": 0.6756756756756757,
+          "same_family": 0.7297297297297297,
+          "same_provider": 0.8513513513513513,
+          "sibling_error": 0.05405405405405406,
+          "other_family_error": 0.12162162162162163,
+          "other_provider_error": 0.14864864864864866
+        },
+        "claude-opus-4-8": {
+          "exact": 0.1,
+          "same_family": 0.7,
+          "same_provider": 0.8625,
+          "sibling_error": 0.6,
+          "other_family_error": 0.1625,
+          "other_provider_error": 0.1375
+        },
+        "claude-opus-5": {
+          "exact": 0.6842105263157895,
+          "same_family": 0.7684210526315789,
+          "same_provider": 0.9578947368421052,
+          "sibling_error": 0.08421052631578947,
+          "other_family_error": 0.18947368421052632,
+          "other_provider_error": 0.042105263157894736
+        },
+        "claude-sonnet-5": {
+          "exact": 0.25806451612903225,
+          "same_family": 0.25806451612903225,
+          "same_provider": 0.978494623655914,
+          "sibling_error": 0.0,
+          "other_family_error": 0.7204301075268817,
+          "other_provider_error": 0.021505376344086023
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.0390625,
+          "same_family": 0.0390625,
+          "same_provider": 0.9765625,
+          "sibling_error": 0.0,
+          "other_family_error": 0.9375,
+          "other_provider_error": 0.0234375
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.0,
+          "same_family": 0.9365079365079365,
+          "same_provider": 0.9444444444444444,
+          "sibling_error": 0.9365079365079365,
+          "other_family_error": 0.007936507936507936,
+          "other_provider_error": 0.05555555555555555
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.0,
+          "same_family": 0.945054945054945,
+          "same_provider": 0.9560439560439561,
+          "sibling_error": 0.945054945054945,
+          "other_family_error": 0.01098901098901099,
+          "other_provider_error": 0.04395604395604396
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.967741935483871,
+          "same_family": 0.967741935483871,
+          "same_provider": 0.967741935483871,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.03225806451612903
+        },
+        "glm-5.3": {
+          "exact": 0.01098901098901099,
+          "same_family": 0.01098901098901099,
+          "same_provider": 0.01098901098901099,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.989010989010989
+        },
+        "glm-5.3-flash": {
+          "exact": 0.0,
+          "same_family": 0.022222222222222223,
+          "same_provider": 0.022222222222222223,
+          "sibling_error": 0.022222222222222223,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9777777777777777
+        },
+        "gpt-5.5": {
+          "exact": 0.16666666666666666,
+          "same_family": 0.16666666666666666,
+          "same_provider": 0.8571428571428571,
+          "sibling_error": 0.0,
+          "other_family_error": 0.6904761904761905,
+          "other_provider_error": 0.14285714285714285
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.304,
+          "same_family": 0.304,
+          "same_provider": 0.912,
+          "sibling_error": 0.0,
+          "other_family_error": 0.608,
+          "other_provider_error": 0.088
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.0,
+          "same_family": 0.15702479338842976,
+          "same_provider": 0.8016528925619835,
+          "sibling_error": 0.15702479338842976,
+          "other_family_error": 0.6446280991735537,
+          "other_provider_error": 0.19834710743801653
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.0,
+          "same_family": 0.2857142857142857,
+          "same_provider": 0.8015873015873016,
+          "sibling_error": 0.2857142857142857,
+          "other_family_error": 0.5158730158730159,
+          "other_provider_error": 0.1984126984126984
+        },
+        "gpt-6-astra": {
+          "exact": 0.6,
+          "same_family": 0.6,
+          "same_provider": 0.7583333333333333,
+          "sibling_error": 0.0,
+          "other_family_error": 0.15833333333333333,
+          "other_provider_error": 0.24166666666666667
+        },
+        "kimi-k3": {
+          "exact": 0.011111111111111112,
+          "same_family": 0.011111111111111112,
+          "same_provider": 0.011111111111111112,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9888888888888889
+        },
+        "qwen3.8-max": {
+          "exact": 0.09375,
+          "same_family": 0.09375,
+          "same_provider": 0.09375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.90625
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.1111111111111111,
+        "claude-opus": 0.48662873399715506,
+        "claude-sonnet": 0.25806451612903225,
+        "gemini-3.1-pro-preview": 0.0390625,
+        "gemini-flash": 0.3225806451612903,
+        "glm-5.3": 0.005494505494505495,
+        "gpt-5.5": 0.16666666666666666,
+        "gpt-5.6": 0.10133333333333333,
+        "gpt-6-astra": 0.6,
+        "kimi-k3": 0.011111111111111112,
+        "qwen3.8-max": 0.09375
+      }
+    },
+    "independent": {
+      "macro_over_authors": {
+        "exact": 0.27193871061388714,
+        "same_family": 0.4088540437123374,
+        "same_provider": 0.6750939305591852,
+        "sibling_error": 0.13691533309845036,
+        "other_family_error": 0.26623988684684785,
+        "other_provider_error": 0.3249060694408147
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.2,
+          "same_family": 0.2,
+          "same_provider": 0.6222222222222222,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4222222222222222,
+          "other_provider_error": 0.37777777777777777
+        },
+        "claude-opus-4-6": {
+          "exact": 0.43243243243243246,
+          "same_family": 0.5540540540540541,
+          "same_provider": 0.8378378378378378,
+          "sibling_error": 0.12162162162162163,
+          "other_family_error": 0.28378378378378377,
+          "other_provider_error": 0.16216216216216217
+        },
+        "claude-opus-4-8": {
+          "exact": 0.125,
+          "same_family": 0.4125,
+          "same_provider": 0.7375,
+          "sibling_error": 0.2875,
+          "other_family_error": 0.325,
+          "other_provider_error": 0.2625
+        },
+        "claude-opus-5": {
+          "exact": 0.4631578947368421,
+          "same_family": 0.4842105263157895,
+          "same_provider": 0.6631578947368421,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.17894736842105263,
+          "other_provider_error": 0.3368421052631579
+        },
+        "claude-sonnet-5": {
+          "exact": 0.41935483870967744,
+          "same_family": 0.41935483870967744,
+          "same_provider": 0.7849462365591398,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3655913978494624,
+          "other_provider_error": 0.21505376344086022
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.5859375,
+          "same_family": 0.5859375,
+          "same_provider": 0.9609375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.375,
+          "other_provider_error": 0.0390625
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.15079365079365079,
+          "same_family": 0.5317460317460317,
+          "same_provider": 0.9206349206349206,
+          "sibling_error": 0.38095238095238093,
+          "other_family_error": 0.3888888888888889,
+          "other_provider_error": 0.07936507936507936
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.3076923076923077,
+          "same_family": 0.6703296703296703,
+          "same_provider": 0.8901098901098901,
+          "sibling_error": 0.3626373626373626,
+          "other_family_error": 0.21978021978021978,
+          "other_provider_error": 0.10989010989010989
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.3548387096774194,
+          "same_family": 0.6612903225806451,
+          "same_provider": 0.9354838709677419,
+          "sibling_error": 0.3064516129032258,
+          "other_family_error": 0.27419354838709675,
+          "other_provider_error": 0.06451612903225806
+        },
+        "glm-5.3": {
+          "exact": 0.15384615384615385,
+          "same_family": 0.34065934065934067,
+          "same_provider": 0.34065934065934067,
+          "sibling_error": 0.18681318681318682,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6593406593406593
+        },
+        "glm-5.3-flash": {
+          "exact": 0.1,
+          "same_family": 0.2111111111111111,
+          "same_provider": 0.2111111111111111,
+          "sibling_error": 0.1111111111111111,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.7888888888888889
+        },
+        "gpt-5.5": {
+          "exact": 0.3412698412698413,
+          "same_family": 0.3412698412698413,
+          "same_provider": 0.7063492063492064,
+          "sibling_error": 0.0,
+          "other_family_error": 0.36507936507936506,
+          "other_provider_error": 0.29365079365079366
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.168,
+          "same_family": 0.448,
+          "same_provider": 0.848,
+          "sibling_error": 0.28,
+          "other_family_error": 0.4,
+          "other_provider_error": 0.152
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.05785123966942149,
+          "same_family": 0.2975206611570248,
+          "same_provider": 0.7520661157024794,
+          "sibling_error": 0.2396694214876033,
+          "other_family_error": 0.45454545454545453,
+          "other_provider_error": 0.24793388429752067
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.16666666666666666,
+          "same_family": 0.3333333333333333,
+          "same_provider": 0.7142857142857143,
+          "sibling_error": 0.16666666666666666,
+          "other_family_error": 0.38095238095238093,
+          "other_provider_error": 0.2857142857142857
+        },
+        "gpt-6-astra": {
+          "exact": 0.4666666666666667,
+          "same_family": 0.4666666666666667,
+          "same_provider": 0.825,
+          "sibling_error": 0.0,
+          "other_family_error": 0.35833333333333334,
+          "other_provider_error": 0.175
+        },
+        "kimi-k3": {
+          "exact": 0.08888888888888889,
+          "same_family": 0.08888888888888889,
+          "same_provider": 0.08888888888888889,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9111111111111111
+        },
+        "qwen3.8-max": {
+          "exact": 0.3125,
+          "same_family": 0.3125,
+          "same_provider": 0.3125,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6875
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.2,
+        "claude-opus": 0.34019677572309154,
+        "claude-sonnet": 0.41935483870967744,
+        "gemini-3.1-pro-preview": 0.5859375,
+        "gemini-flash": 0.27110822272112595,
+        "glm-5.3": 0.12692307692307692,
+        "gpt-5.5": 0.3412698412698413,
+        "gpt-5.6": 0.1308393021120294,
+        "gpt-6-astra": 0.4666666666666667,
+        "kimi-k3": 0.08888888888888889,
+        "qwen3.8-max": 0.3125
+      }
+    },
+    "lda": {
+      "macro_over_authors": {
+        "exact": 0.2710516340430582,
+        "same_family": 0.42392406020954987,
+        "same_provider": 0.6831695724834406,
+        "sibling_error": 0.15287242616649163,
+        "other_family_error": 0.25924551227389075,
+        "other_provider_error": 0.3168304275165593
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.18888888888888888,
+          "same_family": 0.18888888888888888,
+          "same_provider": 0.6111111111111112,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4222222222222222,
+          "other_provider_error": 0.3888888888888889
+        },
+        "claude-opus-4-6": {
+          "exact": 0.40540540540540543,
+          "same_family": 0.527027027027027,
+          "same_provider": 0.8243243243243243,
+          "sibling_error": 0.12162162162162163,
+          "other_family_error": 0.2972972972972973,
+          "other_provider_error": 0.17567567567567569
+        },
+        "claude-opus-4-8": {
+          "exact": 0.1625,
+          "same_family": 0.425,
+          "same_provider": 0.7375,
+          "sibling_error": 0.2625,
+          "other_family_error": 0.3125,
+          "other_provider_error": 0.2625
+        },
+        "claude-opus-5": {
+          "exact": 0.4105263157894737,
+          "same_family": 0.43157894736842106,
+          "same_provider": 0.631578947368421,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.2,
+          "other_provider_error": 0.3684210526315789
+        },
+        "claude-sonnet-5": {
+          "exact": 0.46236559139784944,
+          "same_family": 0.46236559139784944,
+          "same_provider": 0.7849462365591398,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3225806451612903,
+          "other_provider_error": 0.21505376344086022
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.546875,
+          "same_family": 0.546875,
+          "same_provider": 0.9609375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4140625,
+          "other_provider_error": 0.0390625
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.1349206349206349,
+          "same_family": 0.6031746031746031,
+          "same_provider": 0.9285714285714286,
+          "sibling_error": 0.46825396825396826,
+          "other_family_error": 0.3253968253968254,
+          "other_provider_error": 0.07142857142857142
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.31868131868131866,
+          "same_family": 0.6813186813186813,
+          "same_provider": 0.9010989010989011,
+          "sibling_error": 0.3626373626373626,
+          "other_family_error": 0.21978021978021978,
+          "other_provider_error": 0.0989010989010989
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.31451612903225806,
+          "same_family": 0.6774193548387096,
+          "same_provider": 0.9435483870967742,
+          "sibling_error": 0.3629032258064516,
+          "other_family_error": 0.2661290322580645,
+          "other_provider_error": 0.056451612903225805
+        },
+        "glm-5.3": {
+          "exact": 0.15384615384615385,
+          "same_family": 0.38461538461538464,
+          "same_provider": 0.38461538461538464,
+          "sibling_error": 0.23076923076923078,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6153846153846154
+        },
+        "glm-5.3-flash": {
+          "exact": 0.16666666666666666,
+          "same_family": 0.32222222222222224,
+          "same_provider": 0.32222222222222224,
+          "sibling_error": 0.15555555555555556,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6777777777777778
+        },
+        "gpt-5.5": {
+          "exact": 0.31746031746031744,
+          "same_family": 0.31746031746031744,
+          "same_provider": 0.7142857142857143,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3968253968253968,
+          "other_provider_error": 0.2857142857142857
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.184,
+          "same_family": 0.512,
+          "same_provider": 0.856,
+          "sibling_error": 0.328,
+          "other_family_error": 0.344,
+          "other_provider_error": 0.144
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.0743801652892562,
+          "same_family": 0.32231404958677684,
+          "same_provider": 0.7520661157024794,
+          "sibling_error": 0.24793388429752067,
+          "other_family_error": 0.4297520661157025,
+          "other_provider_error": 0.24793388429752067
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.15873015873015872,
+          "same_family": 0.3492063492063492,
+          "same_provider": 0.6984126984126984,
+          "sibling_error": 0.19047619047619047,
+          "other_family_error": 0.3492063492063492,
+          "other_provider_error": 0.30158730158730157
+        },
+        "gpt-6-astra": {
+          "exact": 0.4583333333333333,
+          "same_family": 0.4583333333333333,
+          "same_provider": 0.825,
+          "sibling_error": 0.0,
+          "other_family_error": 0.36666666666666664,
+          "other_provider_error": 0.175
+        },
+        "kimi-k3": {
+          "exact": 0.06666666666666667,
+          "same_family": 0.06666666666666667,
+          "same_provider": 0.06666666666666667,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9333333333333333
+        },
+        "qwen3.8-max": {
+          "exact": 0.3541666666666667,
+          "same_family": 0.3541666666666667,
+          "same_provider": 0.3541666666666667,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6458333333333334
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.18888888888888888,
+        "claude-opus": 0.3261439070649597,
+        "claude-sonnet": 0.46236559139784944,
+        "gemini-3.1-pro-preview": 0.546875,
+        "gemini-flash": 0.2560393608780705,
+        "glm-5.3": 0.16025641025641024,
+        "gpt-5.5": 0.31746031746031744,
+        "gpt-5.6": 0.13903677467313832,
+        "gpt-6-astra": 0.4583333333333333,
+        "kimi-k3": 0.06666666666666667,
+        "qwen3.8-max": 0.3541666666666667
+      }
+    },
+    "logistic_dense": {
+      "macro_over_authors": {
+        "exact": 0.28085603768518114,
+        "same_family": 0.4302787501018612,
+        "same_provider": 0.6912508659795326,
+        "sibling_error": 0.14942271241668012,
+        "other_family_error": 0.2609721158776713,
+        "other_provider_error": 0.3087491340204674
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.16666666666666666,
+          "same_family": 0.16666666666666666,
+          "same_provider": 0.6333333333333333,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4666666666666667,
+          "other_provider_error": 0.36666666666666664
+        },
+        "claude-opus-4-6": {
+          "exact": 0.44594594594594594,
+          "same_family": 0.581081081081081,
+          "same_provider": 0.8108108108108109,
+          "sibling_error": 0.13513513513513514,
+          "other_family_error": 0.22972972972972974,
+          "other_provider_error": 0.1891891891891892
+        },
+        "claude-opus-4-8": {
+          "exact": 0.15,
+          "same_family": 0.4625,
+          "same_provider": 0.75,
+          "sibling_error": 0.3125,
+          "other_family_error": 0.2875,
+          "other_provider_error": 0.25
+        },
+        "claude-opus-5": {
+          "exact": 0.47368421052631576,
+          "same_family": 0.49473684210526314,
+          "same_provider": 0.7052631578947368,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.21052631578947367,
+          "other_provider_error": 0.29473684210526313
+        },
+        "claude-sonnet-5": {
+          "exact": 0.46236559139784944,
+          "same_family": 0.46236559139784944,
+          "same_provider": 0.8279569892473119,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3655913978494624,
+          "other_provider_error": 0.17204301075268819
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.578125,
+          "same_family": 0.578125,
+          "same_provider": 0.9453125,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3671875,
+          "other_provider_error": 0.0546875
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.10317460317460317,
+          "same_family": 0.5476190476190477,
+          "same_provider": 0.9285714285714286,
+          "sibling_error": 0.4444444444444444,
+          "other_family_error": 0.38095238095238093,
+          "other_provider_error": 0.07142857142857142
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.32967032967032966,
+          "same_family": 0.6593406593406593,
+          "same_provider": 0.8791208791208791,
+          "sibling_error": 0.32967032967032966,
+          "other_family_error": 0.21978021978021978,
+          "other_provider_error": 0.12087912087912088
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.31451612903225806,
+          "same_family": 0.6612903225806451,
+          "same_provider": 0.9354838709677419,
+          "sibling_error": 0.3467741935483871,
+          "other_family_error": 0.27419354838709675,
+          "other_provider_error": 0.06451612903225806
+        },
+        "glm-5.3": {
+          "exact": 0.13186813186813187,
+          "same_family": 0.3516483516483517,
+          "same_provider": 0.3516483516483517,
+          "sibling_error": 0.21978021978021978,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6483516483516484
+        },
+        "glm-5.3-flash": {
+          "exact": 0.15555555555555556,
+          "same_family": 0.3111111111111111,
+          "same_provider": 0.3111111111111111,
+          "sibling_error": 0.15555555555555556,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6888888888888889
+        },
+        "gpt-5.5": {
+          "exact": 0.31746031746031744,
+          "same_family": 0.31746031746031744,
+          "same_provider": 0.7301587301587301,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4126984126984127,
+          "other_provider_error": 0.2698412698412698
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.264,
+          "same_family": 0.584,
+          "same_provider": 0.88,
+          "sibling_error": 0.32,
+          "other_family_error": 0.296,
+          "other_provider_error": 0.12
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.0743801652892562,
+          "same_family": 0.2727272727272727,
+          "same_provider": 0.7768595041322314,
+          "sibling_error": 0.19834710743801653,
+          "other_family_error": 0.5041322314049587,
+          "other_provider_error": 0.2231404958677686
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.14285714285714285,
+          "same_family": 0.3492063492063492,
+          "same_provider": 0.6984126984126984,
+          "sibling_error": 0.20634920634920634,
+          "other_family_error": 0.3492063492063492,
+          "other_provider_error": 0.30158730158730157
+        },
+        "gpt-6-astra": {
+          "exact": 0.49166666666666664,
+          "same_family": 0.49166666666666664,
+          "same_provider": 0.825,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3333333333333333,
+          "other_provider_error": 0.175
+        },
+        "kimi-k3": {
+          "exact": 0.08888888888888889,
+          "same_family": 0.08888888888888889,
+          "same_provider": 0.08888888888888889,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9111111111111111
+        },
+        "qwen3.8-max": {
+          "exact": 0.3645833333333333,
+          "same_family": 0.3645833333333333,
+          "same_provider": 0.3645833333333333,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6354166666666666
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.16666666666666666,
+        "claude-opus": 0.3565433854907539,
+        "claude-sonnet": 0.46236559139784944,
+        "gemini-3.1-pro-preview": 0.578125,
+        "gemini-flash": 0.24912035395906362,
+        "glm-5.3": 0.1437118437118437,
+        "gpt-5.5": 0.31746031746031744,
+        "gpt-5.6": 0.1604124360487997,
+        "gpt-6-astra": 0.49166666666666664,
+        "kimi-k3": 0.08888888888888889,
+        "qwen3.8-max": 0.3645833333333333
+      }
+    },
+    "logistic_full": {
+      "macro_over_authors": {
+        "exact": 0.29564003134552697,
+        "same_family": 0.450231460367385,
+        "same_provider": 0.6902924400169522,
+        "sibling_error": 0.15459142902185807,
+        "other_family_error": 0.2400609796495671,
+        "other_provider_error": 0.3097075599830477
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.15555555555555556,
+          "same_family": 0.15555555555555556,
+          "same_provider": 0.6,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4444444444444444,
+          "other_provider_error": 0.4
+        },
+        "claude-opus-4-6": {
+          "exact": 0.43243243243243246,
+          "same_family": 0.581081081081081,
+          "same_provider": 0.7837837837837838,
+          "sibling_error": 0.14864864864864866,
+          "other_family_error": 0.20270270270270271,
+          "other_provider_error": 0.21621621621621623
+        },
+        "claude-opus-4-8": {
+          "exact": 0.1875,
+          "same_family": 0.475,
+          "same_provider": 0.7375,
+          "sibling_error": 0.2875,
+          "other_family_error": 0.2625,
+          "other_provider_error": 0.2625
+        },
+        "claude-opus-5": {
+          "exact": 0.4842105263157895,
+          "same_family": 0.5052631578947369,
+          "same_provider": 0.7052631578947368,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.2,
+          "other_provider_error": 0.29473684210526313
+        },
+        "claude-sonnet-5": {
+          "exact": 0.4838709677419355,
+          "same_family": 0.4838709677419355,
+          "same_provider": 0.8172043010752689,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3333333333333333,
+          "other_provider_error": 0.1827956989247312
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.6015625,
+          "same_family": 0.6015625,
+          "same_provider": 0.9453125,
+          "sibling_error": 0.0,
+          "other_family_error": 0.34375,
+          "other_provider_error": 0.0546875
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.15873015873015872,
+          "same_family": 0.5634920634920635,
+          "same_provider": 0.9285714285714286,
+          "sibling_error": 0.40476190476190477,
+          "other_family_error": 0.36507936507936506,
+          "other_provider_error": 0.07142857142857142
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.31868131868131866,
+          "same_family": 0.6703296703296703,
+          "same_provider": 0.8901098901098901,
+          "sibling_error": 0.3516483516483517,
+          "other_family_error": 0.21978021978021978,
+          "other_provider_error": 0.10989010989010989
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.3225806451612903,
+          "same_family": 0.6854838709677419,
+          "same_provider": 0.9274193548387096,
+          "sibling_error": 0.3629032258064516,
+          "other_family_error": 0.24193548387096775,
+          "other_provider_error": 0.07258064516129033
+        },
+        "glm-5.3": {
+          "exact": 0.16483516483516483,
+          "same_family": 0.4175824175824176,
+          "same_provider": 0.4175824175824176,
+          "sibling_error": 0.25274725274725274,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.5824175824175825
+        },
+        "glm-5.3-flash": {
+          "exact": 0.15555555555555556,
+          "same_family": 0.3111111111111111,
+          "same_provider": 0.3111111111111111,
+          "sibling_error": 0.15555555555555556,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6888888888888889
+        },
+        "gpt-5.5": {
+          "exact": 0.373015873015873,
+          "same_family": 0.373015873015873,
+          "same_provider": 0.7301587301587301,
+          "sibling_error": 0.0,
+          "other_family_error": 0.35714285714285715,
+          "other_provider_error": 0.2698412698412698
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.256,
+          "same_family": 0.584,
+          "same_provider": 0.848,
+          "sibling_error": 0.328,
+          "other_family_error": 0.264,
+          "other_provider_error": 0.152
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.08264462809917356,
+          "same_family": 0.32231404958677684,
+          "same_provider": 0.7603305785123967,
+          "sibling_error": 0.2396694214876033,
+          "other_family_error": 0.4380165289256198,
+          "other_provider_error": 0.2396694214876033
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.12698412698412698,
+          "same_family": 0.35714285714285715,
+          "same_provider": 0.7222222222222222,
+          "sibling_error": 0.23015873015873015,
+          "other_family_error": 0.36507936507936506,
+          "other_provider_error": 0.2777777777777778
+        },
+        "gpt-6-astra": {
+          "exact": 0.5416666666666666,
+          "same_family": 0.5416666666666666,
+          "same_provider": 0.825,
+          "sibling_error": 0.0,
+          "other_family_error": 0.2833333333333333,
+          "other_provider_error": 0.175
+        },
+        "kimi-k3": {
+          "exact": 0.1111111111111111,
+          "same_family": 0.1111111111111111,
+          "same_provider": 0.1111111111111111,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.8888888888888888
+        },
+        "qwen3.8-max": {
+          "exact": 0.3645833333333333,
+          "same_family": 0.3645833333333333,
+          "same_provider": 0.3645833333333333,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6354166666666666
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.15555555555555556,
+        "claude-opus": 0.36804765291607394,
+        "claude-sonnet": 0.4838709677419355,
+        "gemini-3.1-pro-preview": 0.6015625,
+        "gemini-flash": 0.26666404085758927,
+        "glm-5.3": 0.16019536019536018,
+        "gpt-5.5": 0.373015873015873,
+        "gpt-5.6": 0.15520958502776686,
+        "gpt-6-astra": 0.5416666666666666,
+        "kimi-k3": 0.1111111111111111,
+        "qwen3.8-max": 0.3645833333333333
+      }
+    },
+    "shared_2": {
+      "macro_over_authors": {
+        "exact": 0.275949058760011,
+        "same_family": 0.41793005007816003,
+        "same_provider": 0.6821475081270569,
+        "sibling_error": 0.14198099131814898,
+        "other_family_error": 0.26421745804889685,
+        "other_provider_error": 0.3178524918729431
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.20740740740740743,
+          "same_family": 0.20740740740740743,
+          "same_provider": 0.6481481481481481,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4407407407407407,
+          "other_provider_error": 0.35185185185185186
+        },
+        "claude-opus-4-6": {
+          "exact": 0.44594594594594594,
+          "same_family": 0.5765765765765766,
+          "same_provider": 0.8423423423423424,
+          "sibling_error": 0.13063063063063063,
+          "other_family_error": 0.26576576576576577,
+          "other_provider_error": 0.15765765765765766
+        },
+        "claude-opus-4-8": {
+          "exact": 0.125,
+          "same_family": 0.4083333333333333,
+          "same_provider": 0.725,
+          "sibling_error": 0.2833333333333333,
+          "other_family_error": 0.31666666666666665,
+          "other_provider_error": 0.275
+        },
+        "claude-opus-5": {
+          "exact": 0.4666666666666667,
+          "same_family": 0.48771929824561405,
+          "same_provider": 0.6736842105263158,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.18596491228070178,
+          "other_provider_error": 0.3263157894736842
+        },
+        "claude-sonnet-5": {
+          "exact": 0.4265232974910394,
+          "same_family": 0.4265232974910394,
+          "same_provider": 0.7813620071684588,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3548387096774194,
+          "other_provider_error": 0.2186379928315412
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.5885416666666666,
+          "same_family": 0.5885416666666666,
+          "same_provider": 0.9609375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3723958333333333,
+          "other_provider_error": 0.0390625
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.12962962962962962,
+          "same_family": 0.5291005291005292,
+          "same_provider": 0.9232804232804233,
+          "sibling_error": 0.3994708994708995,
+          "other_family_error": 0.3941798941798942,
+          "other_provider_error": 0.07671957671957672
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.28205128205128205,
+          "same_family": 0.6593406593406593,
+          "same_provider": 0.8974358974358975,
+          "sibling_error": 0.37728937728937734,
+          "other_family_error": 0.2380952380952381,
+          "other_provider_error": 0.10256410256410257
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.3736559139784946,
+          "same_family": 0.6801075268817204,
+          "same_provider": 0.9408602150537635,
+          "sibling_error": 0.3064516129032258,
+          "other_family_error": 0.26075268817204306,
+          "other_provider_error": 0.059139784946236555
+        },
+        "glm-5.3": {
+          "exact": 0.1282051282051282,
+          "same_family": 0.31868131868131866,
+          "same_provider": 0.31868131868131866,
+          "sibling_error": 0.19047619047619047,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6813186813186813
+        },
+        "glm-5.3-flash": {
+          "exact": 0.1111111111111111,
+          "same_family": 0.24444444444444444,
+          "same_provider": 0.24444444444444444,
+          "sibling_error": 0.13333333333333333,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.7555555555555555
+        },
+        "gpt-5.5": {
+          "exact": 0.373015873015873,
+          "same_family": 0.373015873015873,
+          "same_provider": 0.7354497354497355,
+          "sibling_error": 0.0,
+          "other_family_error": 0.36243386243386244,
+          "other_provider_error": 0.2645502645502646
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.192,
+          "same_family": 0.48,
+          "same_provider": 0.856,
+          "sibling_error": 0.288,
+          "other_family_error": 0.376,
+          "other_provider_error": 0.144
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.06336088154269973,
+          "same_family": 0.32231404958677684,
+          "same_provider": 0.768595041322314,
+          "sibling_error": 0.25895316804407714,
+          "other_family_error": 0.4462809917355372,
+          "other_provider_error": 0.23140495867768596
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.16137566137566137,
+          "same_family": 0.3280423280423281,
+          "same_provider": 0.7142857142857143,
+          "sibling_error": 0.16666666666666666,
+          "other_family_error": 0.3862433862433862,
+          "other_provider_error": 0.2857142857142857
+        },
+        "gpt-6-astra": {
+          "exact": 0.4805555555555555,
+          "same_family": 0.4805555555555555,
+          "same_provider": 0.836111111111111,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3555555555555555,
+          "other_provider_error": 0.1638888888888889
+        },
+        "kimi-k3": {
+          "exact": 0.0925925925925926,
+          "same_family": 0.0925925925925926,
+          "same_provider": 0.0925925925925926,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9074074074074074
+        },
+        "qwen3.8-max": {
+          "exact": 0.3194444444444445,
+          "same_family": 0.3194444444444445,
+          "same_provider": 0.3194444444444445,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6805555555555555
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.20740740740740743,
+        "claude-opus": 0.3458708708708709,
+        "claude-sonnet": 0.4265232974910394,
+        "gemini-3.1-pro-preview": 0.5885416666666666,
+        "gemini-flash": 0.2617789418864688,
+        "glm-5.3": 0.11965811965811965,
+        "gpt-5.5": 0.373015873015873,
+        "gpt-5.6": 0.13891218097278704,
+        "gpt-6-astra": 0.4805555555555555,
+        "kimi-k3": 0.0925925925925926,
+        "qwen3.8-max": 0.3194444444444445
+      }
+    },
+    "shared_3": {
+      "macro_over_authors": {
+        "exact": 0.275238585732563,
+        "same_family": 0.4152560399271066,
+        "same_provider": 0.6801905911082305,
+        "sibling_error": 0.1400174541945434,
+        "other_family_error": 0.2649345511811239,
+        "other_provider_error": 0.31980940889176956
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.1962962962962963,
+          "same_family": 0.1962962962962963,
+          "same_provider": 0.6555555555555556,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4592592592592593,
+          "other_provider_error": 0.34444444444444444
+        },
+        "claude-opus-4-6": {
+          "exact": 0.43693693693693697,
+          "same_family": 0.5675675675675675,
+          "same_provider": 0.8333333333333333,
+          "sibling_error": 0.13063063063063063,
+          "other_family_error": 0.26576576576576577,
+          "other_provider_error": 0.16666666666666669
+        },
+        "claude-opus-4-8": {
+          "exact": 0.1375,
+          "same_family": 0.4166666666666667,
+          "same_provider": 0.7208333333333333,
+          "sibling_error": 0.2791666666666667,
+          "other_family_error": 0.30416666666666664,
+          "other_provider_error": 0.2791666666666667
+        },
+        "claude-opus-5": {
+          "exact": 0.47368421052631576,
+          "same_family": 0.49473684210526314,
+          "same_provider": 0.6736842105263158,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.17894736842105263,
+          "other_provider_error": 0.3263157894736842
+        },
+        "claude-sonnet-5": {
+          "exact": 0.4336917562724015,
+          "same_family": 0.4336917562724015,
+          "same_provider": 0.7885304659498208,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3548387096774194,
+          "other_provider_error": 0.21146953405017924
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.5989583333333334,
+          "same_family": 0.5989583333333334,
+          "same_provider": 0.9609375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3619791666666667,
+          "other_provider_error": 0.0390625
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.12698412698412698,
+          "same_family": 0.5132275132275133,
+          "same_provider": 0.9206349206349206,
+          "sibling_error": 0.3862433862433862,
+          "other_family_error": 0.40740740740740744,
+          "other_provider_error": 0.07936507936507936
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.2783882783882784,
+          "same_family": 0.6446886446886446,
+          "same_provider": 0.8937728937728937,
+          "sibling_error": 0.36630036630036633,
+          "other_family_error": 0.2490842490842491,
+          "other_provider_error": 0.10622710622710622
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.3602150537634408,
+          "same_family": 0.6720430107526881,
+          "same_provider": 0.9408602150537635,
+          "sibling_error": 0.3118279569892473,
+          "other_family_error": 0.2688172043010753,
+          "other_provider_error": 0.059139784946236555
+        },
+        "glm-5.3": {
+          "exact": 0.11721611721611722,
+          "same_family": 0.31135531135531136,
+          "same_provider": 0.31135531135531136,
+          "sibling_error": 0.19413919413919414,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6886446886446886
+        },
+        "glm-5.3-flash": {
+          "exact": 0.12222222222222222,
+          "same_family": 0.24814814814814815,
+          "same_provider": 0.24814814814814815,
+          "sibling_error": 0.12592592592592594,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.7518518518518519
+        },
+        "gpt-5.5": {
+          "exact": 0.36772486772486773,
+          "same_family": 0.36772486772486773,
+          "same_provider": 0.7195767195767196,
+          "sibling_error": 0.0,
+          "other_family_error": 0.35185185185185186,
+          "other_provider_error": 0.28042328042328046
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.19466666666666665,
+          "same_family": 0.4826666666666667,
+          "same_provider": 0.856,
+          "sibling_error": 0.288,
+          "other_family_error": 0.3733333333333333,
+          "other_provider_error": 0.144
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.06887052341597796,
+          "same_family": 0.31129476584022037,
+          "same_provider": 0.7575757575757576,
+          "sibling_error": 0.2424242424242424,
+          "other_family_error": 0.4462809917355372,
+          "other_provider_error": 0.2424242424242424
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.15343915343915343,
+          "same_family": 0.3280423280423281,
+          "same_provider": 0.7195767195767196,
+          "sibling_error": 0.1746031746031746,
+          "other_family_error": 0.39153439153439157,
+          "other_provider_error": 0.28042328042328046
+        },
+        "gpt-6-astra": {
+          "exact": 0.4861111111111111,
+          "same_family": 0.4861111111111111,
+          "same_provider": 0.8416666666666667,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3555555555555555,
+          "other_provider_error": 0.15833333333333333
+        },
+        "kimi-k3": {
+          "exact": 0.08888888888888889,
+          "same_family": 0.08888888888888889,
+          "same_provider": 0.08888888888888889,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9111111111111111
+        },
+        "qwen3.8-max": {
+          "exact": 0.3125,
+          "same_family": 0.3125,
+          "same_provider": 0.3125,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6875
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.1962962962962963,
+        "claude-opus": 0.3493737158210843,
+        "claude-sonnet": 0.4336917562724015,
+        "gemini-3.1-pro-preview": 0.5989583333333334,
+        "gemini-flash": 0.25519581971194877,
+        "glm-5.3": 0.11971916971916971,
+        "gpt-5.5": 0.36772486772486773,
+        "gpt-5.6": 0.138992114507266,
+        "gpt-6-astra": 0.4861111111111111,
+        "kimi-k3": 0.08888888888888889,
+        "qwen3.8-max": 0.3125
+      }
+    },
+    "shuffled_2": {
+      "macro_over_authors": {
+        "exact": 0.27072584512805753,
+        "same_family": 0.4128650351920559,
+        "same_provider": 0.6764198103198307,
+        "sibling_error": 0.14213919006399842,
+        "other_family_error": 0.26355477512777487,
+        "other_provider_error": 0.3235801896801692
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.2,
+          "same_family": 0.2,
+          "same_provider": 0.6481481481481481,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4481481481481482,
+          "other_provider_error": 0.35185185185185186
+        },
+        "claude-opus-4-6": {
+          "exact": 0.43693693693693697,
+          "same_family": 0.5675675675675675,
+          "same_provider": 0.8333333333333333,
+          "sibling_error": 0.13063063063063063,
+          "other_family_error": 0.26576576576576577,
+          "other_provider_error": 0.16666666666666669
+        },
+        "claude-opus-4-8": {
+          "exact": 0.12916666666666668,
+          "same_family": 0.4208333333333333,
+          "same_provider": 0.7333333333333333,
+          "sibling_error": 0.29166666666666663,
+          "other_family_error": 0.3125,
+          "other_provider_error": 0.26666666666666666
+        },
+        "claude-opus-5": {
+          "exact": 0.45964912280701753,
+          "same_family": 0.4807017543859649,
+          "same_provider": 0.656140350877193,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.1754385964912281,
+          "other_provider_error": 0.343859649122807
+        },
+        "claude-sonnet-5": {
+          "exact": 0.4372759856630824,
+          "same_family": 0.4372759856630824,
+          "same_provider": 0.8100358422939068,
+          "sibling_error": 0.0,
+          "other_family_error": 0.37275985663082434,
+          "other_provider_error": 0.1899641577060932
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.5807291666666666,
+          "same_family": 0.5807291666666666,
+          "same_provider": 0.9609375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3802083333333333,
+          "other_provider_error": 0.0390625
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.1349206349206349,
+          "same_family": 0.5370370370370371,
+          "same_provider": 0.9232804232804233,
+          "sibling_error": 0.4021164021164021,
+          "other_family_error": 0.3862433862433862,
+          "other_provider_error": 0.07671957671957672
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.28937728937728935,
+          "same_family": 0.6666666666666666,
+          "same_provider": 0.8937728937728937,
+          "sibling_error": 0.37728937728937734,
+          "other_family_error": 0.22710622710622713,
+          "other_provider_error": 0.10622710622710622
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.3172043010752688,
+          "same_family": 0.6693548387096774,
+          "same_provider": 0.9354838709677419,
+          "sibling_error": 0.35215053763440857,
+          "other_family_error": 0.2661290322580645,
+          "other_provider_error": 0.06451612903225806
+        },
+        "glm-5.3": {
+          "exact": 0.1391941391941392,
+          "same_family": 0.3223443223443223,
+          "same_provider": 0.3223443223443223,
+          "sibling_error": 0.18315018315018317,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6776556776556776
+        },
+        "glm-5.3-flash": {
+          "exact": 0.1148148148148148,
+          "same_family": 0.23703703703703702,
+          "same_provider": 0.23703703703703702,
+          "sibling_error": 0.12222222222222222,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.7629629629629631
+        },
+        "gpt-5.5": {
+          "exact": 0.34656084656084657,
+          "same_family": 0.34656084656084657,
+          "same_provider": 0.7037037037037037,
+          "sibling_error": 0.0,
+          "other_family_error": 0.35714285714285715,
+          "other_provider_error": 0.29629629629629634
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.17866666666666667,
+          "same_family": 0.45066666666666666,
+          "same_provider": 0.8426666666666667,
+          "sibling_error": 0.272,
+          "other_family_error": 0.392,
+          "other_provider_error": 0.15733333333333335
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.05509641873278237,
+          "same_family": 0.29201101928374656,
+          "same_provider": 0.7410468319559229,
+          "sibling_error": 0.2369146005509642,
+          "other_family_error": 0.44903581267217635,
+          "other_provider_error": 0.25895316804407714
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.14814814814814817,
+          "same_family": 0.31746031746031744,
+          "same_provider": 0.6984126984126984,
+          "sibling_error": 0.1693121693121693,
+          "other_family_error": 0.38095238095238093,
+          "other_provider_error": 0.30158730158730157
+        },
+        "gpt-6-astra": {
+          "exact": 0.48333333333333334,
+          "same_family": 0.48333333333333334,
+          "same_provider": 0.8138888888888889,
+          "sibling_error": 0.0,
+          "other_family_error": 0.33055555555555555,
+          "other_provider_error": 0.1861111111111111
+        },
+        "kimi-k3": {
+          "exact": 0.08518518518518518,
+          "same_family": 0.08518518518518518,
+          "same_provider": 0.08518518518518518,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9148148148148147
+        },
+        "qwen3.8-max": {
+          "exact": 0.3368055555555556,
+          "same_family": 0.3368055555555556,
+          "same_provider": 0.3368055555555556,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6631944444444444
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.2,
+        "claude-opus": 0.34191757547020707,
+        "claude-sonnet": 0.4372759856630824,
+        "gemini-3.1-pro-preview": 0.5807291666666666,
+        "gemini-flash": 0.24716740845773102,
+        "glm-5.3": 0.127004477004477,
+        "gpt-5.5": 0.34656084656084657,
+        "gpt-5.6": 0.12730374451586574,
+        "gpt-6-astra": 0.48333333333333334,
+        "kimi-k3": 0.08518518518518518,
+        "qwen3.8-max": 0.3368055555555556
+      }
+    },
+    "shuffled_3": {
+      "macro_over_authors": {
+        "exact": 0.273415113079702,
+        "same_family": 0.4152302327175609,
+        "same_provider": 0.6788445808451784,
+        "sibling_error": 0.14181511963785892,
+        "other_family_error": 0.2636143481276175,
+        "other_provider_error": 0.3211554191548216
+      },
+      "per_author": {
+        "claude-fable-5": {
+          "exact": 0.2,
+          "same_family": 0.2,
+          "same_provider": 0.6481481481481481,
+          "sibling_error": 0.0,
+          "other_family_error": 0.4481481481481482,
+          "other_provider_error": 0.35185185185185186
+        },
+        "claude-opus-4-6": {
+          "exact": 0.44594594594594594,
+          "same_family": 0.5630630630630631,
+          "same_provider": 0.8378378378378378,
+          "sibling_error": 0.11711711711711711,
+          "other_family_error": 0.27477477477477474,
+          "other_provider_error": 0.16216216216216217
+        },
+        "claude-opus-4-8": {
+          "exact": 0.1375,
+          "same_family": 0.425,
+          "same_provider": 0.7375,
+          "sibling_error": 0.2875,
+          "other_family_error": 0.3125,
+          "other_provider_error": 0.2625
+        },
+        "claude-opus-5": {
+          "exact": 0.45263157894736844,
+          "same_family": 0.47368421052631576,
+          "same_provider": 0.6491228070175439,
+          "sibling_error": 0.021052631578947368,
+          "other_family_error": 0.1754385964912281,
+          "other_provider_error": 0.3508771929824562
+        },
+        "claude-sonnet-5": {
+          "exact": 0.4480286738351254,
+          "same_family": 0.4480286738351254,
+          "same_provider": 0.8136200716845878,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3655913978494624,
+          "other_provider_error": 0.18637992831541217
+        },
+        "gemini-3.1-pro-preview": {
+          "exact": 0.5859375,
+          "same_family": 0.5859375,
+          "same_provider": 0.9609375,
+          "sibling_error": 0.0,
+          "other_family_error": 0.375,
+          "other_provider_error": 0.0390625
+        },
+        "gemini-3.6-flash": {
+          "exact": 0.14285714285714285,
+          "same_family": 0.5317460317460317,
+          "same_provider": 0.9206349206349206,
+          "sibling_error": 0.3888888888888889,
+          "other_family_error": 0.3888888888888889,
+          "other_provider_error": 0.07936507936507936
+        },
+        "gemini-3.7-flash": {
+          "exact": 0.2857142857142857,
+          "same_family": 0.6666666666666666,
+          "same_provider": 0.8937728937728937,
+          "sibling_error": 0.38095238095238093,
+          "other_family_error": 0.22710622710622713,
+          "other_provider_error": 0.10622710622710622
+        },
+        "gemini-3.8-flash": {
+          "exact": 0.3387096774193548,
+          "same_family": 0.6827956989247312,
+          "same_provider": 0.9408602150537635,
+          "sibling_error": 0.3440860215053763,
+          "other_family_error": 0.25806451612903225,
+          "other_provider_error": 0.059139784946236555
+        },
+        "glm-5.3": {
+          "exact": 0.1391941391941392,
+          "same_family": 0.326007326007326,
+          "same_provider": 0.326007326007326,
+          "sibling_error": 0.18681318681318682,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.673992673992674
+        },
+        "glm-5.3-flash": {
+          "exact": 0.11851851851851851,
+          "same_family": 0.25555555555555554,
+          "same_provider": 0.25555555555555554,
+          "sibling_error": 0.13703703703703704,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.7444444444444445
+        },
+        "gpt-5.5": {
+          "exact": 0.33068783068783064,
+          "same_family": 0.33068783068783064,
+          "same_provider": 0.7142857142857143,
+          "sibling_error": 0.0,
+          "other_family_error": 0.3835978835978836,
+          "other_provider_error": 0.2857142857142857
+        },
+        "gpt-5.6-luna": {
+          "exact": 0.17066666666666666,
+          "same_family": 0.44,
+          "same_provider": 0.8373333333333334,
+          "sibling_error": 0.2693333333333333,
+          "other_family_error": 0.3973333333333333,
+          "other_provider_error": 0.16266666666666665
+        },
+        "gpt-5.6-sol": {
+          "exact": 0.05785123966942149,
+          "same_family": 0.30578512396694213,
+          "same_provider": 0.7355371900826446,
+          "sibling_error": 0.24793388429752067,
+          "other_family_error": 0.4297520661157025,
+          "other_provider_error": 0.2644628099173554
+        },
+        "gpt-5.6-terra": {
+          "exact": 0.15079365079365079,
+          "same_family": 0.32275132275132273,
+          "same_provider": 0.701058201058201,
+          "sibling_error": 0.17195767195767198,
+          "other_family_error": 0.3783068783068783,
+          "other_provider_error": 0.2989417989417989
+        },
+        "gpt-6-astra": {
+          "exact": 0.4805555555555555,
+          "same_family": 0.4805555555555555,
+          "same_provider": 0.8111111111111111,
+          "sibling_error": 0.0,
+          "other_family_error": 0.33055555555555555,
+          "other_provider_error": 0.1888888888888889
+        },
+        "kimi-k3": {
+          "exact": 0.08518518518518518,
+          "same_family": 0.08518518518518518,
+          "same_provider": 0.08518518518518518,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.9148148148148147
+        },
+        "qwen3.8-max": {
+          "exact": 0.3506944444444444,
+          "same_family": 0.3506944444444444,
+          "same_provider": 0.3506944444444444,
+          "sibling_error": 0.0,
+          "other_family_error": 0.0,
+          "other_provider_error": 0.6493055555555556
+        }
+      },
+      "per_family_exact_recall": {
+        "claude-fable": 0.2,
+        "claude-opus": 0.3453591749644381,
+        "claude-sonnet": 0.4480286738351254,
+        "gemini-3.1-pro-preview": 0.5859375,
+        "gemini-flash": 0.2557603686635945,
+        "glm-5.3": 0.12885632885632886,
+        "gpt-5.5": 0.33068783068783064,
+        "gpt-5.6": 0.126437185709913,
+        "gpt-6-astra": 0.4805555555555555,
+        "kimi-k3": 0.08518518518518518,
+        "qwen3.8-max": 0.3506944444444444
+      }
+    }
+  },
+  "gaussian_iterations": 61,
+  "gaussian_prompt_variance_fraction": 0.11837514687831072,
+  "training_log": "Truncated rows: 1022/9482\nEpoch 1/3; steps=475; loss=2.617998; rows/sec=29.13\nEpoch 2/3; steps=950; loss=2.174478; rows/sec=28.67\nEpoch 3/3; steps=1425; loss=2.021726; rows/sec=28.34\nSaved artifacts/prompt-effects/supervised/fold-0; completed_training=True\n",
+  "versions": {
+    "torch": "2.15.0",
+    "transformers": "4.57.6",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1"
+  },
+  "training_source_sha256": "593bf71ec2810039facbd94d431aa3ee47e73c059fba6a2ad914a20255825dfb"
+}
