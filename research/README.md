@@ -6,6 +6,8 @@ after we control for features, fitted parameters, and regularization?
 This is an initial local experiment, not a competition submission or a novelty claim.
 The existing assignment pipeline is unchanged.
 
+The first completed experiment and its failed baseline gate are in [RESULTS.md](RESULTS.md).
+
 ## Model
 
 For passage i from prompt g with author k, use

@@ -1,0 +1,610 @@
+{
+  "word": {
+    "manifest": {
+      "arguments": {
+        "data_dir": "data",
+        "output": "artifacts/prompt-effects/word",
+        "features": "word",
+        "embeddings": null,
+        "embedding_provenance": null,
+        "dimension": 64,
+        "max_features": 20000,
+        "shrinkage": 0.1,
+        "max_iter": 500,
+        "tol": 1e-05,
+        "seed": 42,
+        "partition_seeds": [
+          42,
+          43,
+          44
+        ],
+        "fold": null,
+        "bootstrap": 2000,
+        "threads": 2
+      },
+      "folds_sha256": "8bd14342d1a207b833583bfaee578df4ae1548ce7156914c380a9bb90a3c7e9f",
+      "embeddings_sha256": null,
+      "embedding_provenance": null,
+      "git_revision": "974aecc4705875db4e93edeb0572b7d74d331fa6",
+      "git_status": "",
+      "source_sha256": {
+        "__init__.py": "0bc57c3605ac882340a9ce1e5eedd2ea4617efe2895f69e11837f0db47970b26",
+        "evaluation.py": "ac1b347d8cadb48223c58d142e364178090040de51bf1536e1422d270ddcb8e9",
+        "features.py": "38ccdba8f913240998d1aa13a18e9e511b5031fe55d82e2609c4232e5aa39618",
+        "gaussian.py": "703ee9cf8e17b1d15208381daa641d3dd2b02765f5689ba8d32e8d7f0ce39ecc",
+        "groups.py": "5e747241dad060c6c6a05dadb4c301b7e69b1fa1024b34dcdbf479bb67b907e5",
+        "run.py": "bb0e738567371ff26886bcdaa0a6d0c22c0c55765a05dca686d0d42f68358bbe"
+      },
+      "versions": {
+        "numpy": "2.5.4",
+        "scipy": "1.18.1",
+        "pandas": "2.3.3",
+        "scikit-learn": "1.9.1",
+        "name-that-llm": "0.1.0"
+      },
+      "status": "complete"
+    },
+    "pooled": {
+      "centered_2": {
+        "balanced_accuracy": 0.14965467708130692,
+        "accuracy": 0.1519302615193026,
+        "log_loss": 2.620837285841317,
+        "rows": 4818
+      },
+      "centered_3": {
+        "balanced_accuracy": 0.17922061650362192,
+        "accuracy": 0.18161062681610626,
+        "log_loss": 2.4742865675362444,
+        "rows": 4818
+      },
+      "independent": {
+        "balanced_accuracy": 0.14459627882133003,
+        "accuracy": 0.14819427148194272,
+        "log_loss": 2.601652244276253,
+        "rows": 4818
+      },
+      "lda": {
+        "balanced_accuracy": 0.14442235344932755,
+        "accuracy": 0.14674138646741386,
+        "log_loss": 2.637118061268279,
+        "rows": 4818
+      },
+      "logistic_dense": {
+        "balanced_accuracy": 0.13252289055725358,
+        "accuracy": 0.13345786633457865,
+        "log_loss": 2.837158767300792,
+        "rows": 4818
+      },
+      "logistic_full": {
+        "balanced_accuracy": 0.2644292115493041,
+        "accuracy": 0.27085927770859275,
+        "log_loss": 2.3462352206848114,
+        "rows": 4818
+      },
+      "shared_2": {
+        "balanced_accuracy": 0.16727966430479857,
+        "accuracy": 0.1695032516950325,
+        "log_loss": 2.4546985018197263,
+        "rows": 4818
+      },
+      "shared_3": {
+        "balanced_accuracy": 0.19039992394542973,
+        "accuracy": 0.1931645219316452,
+        "log_loss": 2.37515774662644,
+        "rows": 4818
+      },
+      "shuffled_2": {
+        "balanced_accuracy": 0.12737766699308584,
+        "accuracy": 0.12930676629306767,
+        "log_loss": 2.937171804421298,
+        "rows": 4818
+      },
+      "shuffled_3": {
+        "balanced_accuracy": 0.13371976088970658,
+        "accuracy": 0.135602601356026,
+        "log_loss": 3.05319660199133,
+        "rows": 4818
+      }
+    },
+    "comparisons": [
+      {
+        "method": "shared_2",
+        "baseline": "independent",
+        "delta_balanced_accuracy": 0.02268338548346856,
+        "ci90": [
+          0.014652956726064321,
+          0.03104520730277926
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "logistic_full",
+        "delta_balanced_accuracy": -0.09714954724450557,
+        "ci90": [
+          -0.10730420193361263,
+          -0.08710203339763897
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "logistic_dense",
+        "delta_balanced_accuracy": 0.03475677374754498,
+        "ci90": [
+          0.026345820099265553,
+          0.04305627294258917
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "lda",
+        "delta_balanced_accuracy": 0.02285731085547103,
+        "ci90": [
+          0.014988414186431702,
+          0.03043553636103468
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "centered_2",
+        "delta_balanced_accuracy": 0.017624987223491633,
+        "ci90": [
+          0.012126091899287608,
+          0.023080077715808972
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "shuffled_2",
+        "delta_balanced_accuracy": 0.039901997311712734,
+        "ci90": [
+          0.03375344551841544,
+          0.046250205786821506
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "independent",
+        "delta_balanced_accuracy": 0.04580364512409972,
+        "ci90": [
+          0.036504217132085286,
+          0.05482011412039541
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "logistic_full",
+        "delta_balanced_accuracy": -0.0740292876038744,
+        "ci90": [
+          -0.08382907120928236,
+          -0.06381778701985212
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "logistic_dense",
+        "delta_balanced_accuracy": 0.057877033388176145,
+        "ci90": [
+          0.048678178441961185,
+          0.06687717007167904
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "lda",
+        "delta_balanced_accuracy": 0.04597757049610219,
+        "ci90": [
+          0.03748295112600705,
+          0.054387905829131715
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "centered_3",
+        "delta_balanced_accuracy": 0.011179307441807812,
+        "ci90": [
+          0.006119162901296572,
+          0.016314427334188846
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "shuffled_3",
+        "delta_balanced_accuracy": 0.05668016305572316,
+        "ci90": [
+          0.049947514860948325,
+          0.06404754336722868
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      }
+    ],
+    "initial_gate_criteria": {
+      "shared_2": {
+        "gain_at_least_one_point": true,
+        "positive_paired_ci90": true,
+        "beats_all_standalone_baselines": false,
+        "beats_simple_centering": true,
+        "shuffle_removes_at_least_half_gain": true
+      },
+      "shared_3": {
+        "gain_at_least_one_point": true,
+        "positive_paired_ci90": true,
+        "beats_all_standalone_baselines": false,
+        "beats_simple_centering": true,
+        "shuffle_removes_at_least_half_gain": true
+      }
+    },
+    "initial_gate_passed": false,
+    "elapsed_seconds": 84.29678020899883,
+    "fit_diagnostics": {
+      "0": {
+        "em_iterations": 402,
+        "em_converged": true,
+        "em_relative_change": 9.999357732619162e-06,
+        "prompt_variance_fraction": 0.9152512917557472
+      },
+      "1": {
+        "em_iterations": 407,
+        "em_converged": true,
+        "em_relative_change": 9.994029783981026e-06,
+        "prompt_variance_fraction": 0.9155326038487934
+      },
+      "2": {
+        "em_iterations": 381,
+        "em_converged": true,
+        "em_relative_change": 9.968784584179897e-06,
+        "prompt_variance_fraction": 0.9170633197946507
+      },
+      "3": {
+        "em_iterations": 420,
+        "em_converged": true,
+        "em_relative_change": 9.997925839995575e-06,
+        "prompt_variance_fraction": 0.9159319301510243
+      },
+      "4": {
+        "em_iterations": 423,
+        "em_converged": true,
+        "em_relative_change": 9.968945731593724e-06,
+        "prompt_variance_fraction": 0.9174944276483695
+      }
+    }
+  },
+  "char": {
+    "manifest": {
+      "arguments": {
+        "data_dir": "data",
+        "output": "artifacts/prompt-effects/char",
+        "features": "char",
+        "embeddings": null,
+        "embedding_provenance": null,
+        "dimension": 64,
+        "max_features": 20000,
+        "shrinkage": 0.1,
+        "max_iter": 500,
+        "tol": 1e-05,
+        "seed": 42,
+        "partition_seeds": [
+          42,
+          43,
+          44
+        ],
+        "fold": null,
+        "bootstrap": 2000,
+        "threads": 2
+      },
+      "folds_sha256": "8bd14342d1a207b833583bfaee578df4ae1548ce7156914c380a9bb90a3c7e9f",
+      "embeddings_sha256": null,
+      "embedding_provenance": null,
+      "git_revision": "974aecc4705875db4e93edeb0572b7d74d331fa6",
+      "git_status": "",
+      "source_sha256": {
+        "__init__.py": "0bc57c3605ac882340a9ce1e5eedd2ea4617efe2895f69e11837f0db47970b26",
+        "evaluation.py": "ac1b347d8cadb48223c58d142e364178090040de51bf1536e1422d270ddcb8e9",
+        "features.py": "38ccdba8f913240998d1aa13a18e9e511b5031fe55d82e2609c4232e5aa39618",
+        "gaussian.py": "703ee9cf8e17b1d15208381daa641d3dd2b02765f5689ba8d32e8d7f0ce39ecc",
+        "groups.py": "5e747241dad060c6c6a05dadb4c301b7e69b1fa1024b34dcdbf479bb67b907e5",
+        "run.py": "bb0e738567371ff26886bcdaa0a6d0c22c0c55765a05dca686d0d42f68358bbe"
+      },
+      "versions": {
+        "numpy": "2.5.4",
+        "scipy": "1.18.1",
+        "pandas": "2.3.3",
+        "scikit-learn": "1.9.1",
+        "name-that-llm": "0.1.0"
+      },
+      "status": "complete"
+    },
+    "pooled": {
+      "centered_2": {
+        "balanced_accuracy": 0.16939424513091386,
+        "accuracy": 0.1718555417185554,
+        "log_loss": 2.532500975184684,
+        "rows": 4818
+      },
+      "centered_3": {
+        "balanced_accuracy": 0.1960342267547229,
+        "accuracy": 0.19897606198976062,
+        "log_loss": 2.3802433188107694,
+        "rows": 4818
+      },
+      "independent": {
+        "balanced_accuracy": 0.17213666083068735,
+        "accuracy": 0.17496886674968867,
+        "log_loss": 2.431994385686953,
+        "rows": 4818
+      },
+      "lda": {
+        "balanced_accuracy": 0.17274663606898985,
+        "accuracy": 0.17393109173931093,
+        "log_loss": 2.4897898016337296,
+        "rows": 4818
+      },
+      "logistic_dense": {
+        "balanced_accuracy": 0.167553603634793,
+        "accuracy": 0.16853466168534662,
+        "log_loss": 2.6609084896470945,
+        "rows": 4818
+      },
+      "logistic_full": {
+        "balanced_accuracy": 0.2779747832939322,
+        "accuracy": 0.28393524283935245,
+        "log_loss": 2.1709900414568803,
+        "rows": 4818
+      },
+      "shared_2": {
+        "balanced_accuracy": 0.19781359596339268,
+        "accuracy": 0.20029057700290576,
+        "log_loss": 2.303947367125327,
+        "rows": 4818
+      },
+      "shared_3": {
+        "balanced_accuracy": 0.21297752543486836,
+        "accuracy": 0.21571883215718832,
+        "log_loss": 2.246406958430619,
+        "rows": 4818
+      },
+      "shuffled_2": {
+        "balanced_accuracy": 0.1465300651849214,
+        "accuracy": 0.14840182648401826,
+        "log_loss": 2.8486077883929277,
+        "rows": 4818
+      },
+      "shuffled_3": {
+        "balanced_accuracy": 0.1535065882821009,
+        "accuracy": 0.1555278815552788,
+        "log_loss": 2.997579011283569,
+        "rows": 4818
+      }
+    },
+    "comparisons": [
+      {
+        "method": "shared_2",
+        "baseline": "independent",
+        "delta_balanced_accuracy": 0.02567693513270532,
+        "ci90": [
+          0.01815359249615521,
+          0.03355000211401572
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "logistic_full",
+        "delta_balanced_accuracy": -0.08016118733053955,
+        "ci90": [
+          -0.09098642520091049,
+          -0.06936096181115456
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "logistic_dense",
+        "delta_balanced_accuracy": 0.0302599923285997,
+        "ci90": [
+          0.021603942677204727,
+          0.03894677910099964
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "lda",
+        "delta_balanced_accuracy": 0.025066959894402833,
+        "ci90": [
+          0.017300020458265133,
+          0.032826777730093716
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "centered_2",
+        "delta_balanced_accuracy": 0.028419350832478825,
+        "ci90": [
+          0.022292787550215246,
+          0.03432454637268043
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_2",
+        "baseline": "shuffled_2",
+        "delta_balanced_accuracy": 0.05128353077847128,
+        "ci90": [
+          0.044245573153587646,
+          0.05827419183637277
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "independent",
+        "delta_balanced_accuracy": 0.040840864604181015,
+        "ci90": [
+          0.03240126350656462,
+          0.04936004031242126
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "logistic_full",
+        "delta_balanced_accuracy": -0.06499725785906385,
+        "ci90": [
+          -0.07652191077290514,
+          -0.05369363812132097
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "logistic_dense",
+        "delta_balanced_accuracy": 0.0454239218000754,
+        "ci90": [
+          0.03682949612793906,
+          0.05429231511146406
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "lda",
+        "delta_balanced_accuracy": 0.040230889365878514,
+        "ci90": [
+          0.032486913307368616,
+          0.04845013341356261
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "centered_3",
+        "delta_balanced_accuracy": 0.016943298680145474,
+        "ci90": [
+          0.011419942923103256,
+          0.02237131091283459
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      },
+      {
+        "method": "shared_3",
+        "baseline": "shuffled_3",
+        "delta_balanced_accuracy": 0.059470937152767474,
+        "ci90": [
+          0.05256448915263504,
+          0.06672937231652769
+        ],
+        "bootstrap_samples": 2000,
+        "prompts": 282,
+        "scope": "Conditional on fitted models and these folds; not training-set uncertainty."
+      }
+    ],
+    "initial_gate_criteria": {
+      "shared_2": {
+        "gain_at_least_one_point": true,
+        "positive_paired_ci90": true,
+        "beats_all_standalone_baselines": false,
+        "beats_simple_centering": true,
+        "shuffle_removes_at_least_half_gain": true
+      },
+      "shared_3": {
+        "gain_at_least_one_point": true,
+        "positive_paired_ci90": true,
+        "beats_all_standalone_baselines": false,
+        "beats_simple_centering": true,
+        "shuffle_removes_at_least_half_gain": true
+      }
+    },
+    "initial_gate_passed": false,
+    "elapsed_seconds": 119.68755741696805,
+    "fit_diagnostics": {
+      "0": {
+        "em_iterations": 283,
+        "em_converged": true,
+        "em_relative_change": 9.979586861866148e-06,
+        "prompt_variance_fraction": 0.8479569595252487
+      },
+      "1": {
+        "em_iterations": 297,
+        "em_converged": true,
+        "em_relative_change": 9.942626921226011e-06,
+        "prompt_variance_fraction": 0.846723101361481
+      },
+      "2": {
+        "em_iterations": 272,
+        "em_converged": true,
+        "em_relative_change": 9.93489120330951e-06,
+        "prompt_variance_fraction": 0.8499504421506089
+      },
+      "3": {
+        "em_iterations": 292,
+        "em_converged": true,
+        "em_relative_change": 9.989927532370636e-06,
+        "prompt_variance_fraction": 0.8468125988598108
+      },
+      "4": {
+        "em_iterations": 301,
+        "em_converged": true,
+        "em_relative_change": 9.962611957214707e-06,
+        "prompt_variance_fraction": 0.8475149587543369
+      }
+    }
+  }
+}
