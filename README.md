@@ -1,5 +1,8 @@
 # Name That LLM
 
+For the controlled prompt-effect research experiment, see [research/README.md](research/README.md).
+It uses a separate runner and does not change the assignment experiments below.
+
 ## Configuration
 
 `src/name_that_llm/config.py` owns the experiment defaults in frozen dataclasses:
