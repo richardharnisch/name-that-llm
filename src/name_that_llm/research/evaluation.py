@@ -70,6 +70,7 @@ def summarize(predictions: pd.DataFrame, repeats: int, seed: int) -> dict:
             for (source, name), rows in predictions.groupby(["split", "method"])
         },
     }
+    supervised = ("finetuned_head",) if "finetuned_head" in result["pooled"] else ()
     comparisons = []
     for size in (2, 3):
         method = f"shared_{size}"
@@ -80,6 +81,7 @@ def summarize(predictions: pd.DataFrame, repeats: int, seed: int) -> dict:
             "lda",
             f"centered_{size}",
             f"shuffled_{size}",
+            *supervised,
         ):
             comparisons.append(
                 paired_prompt_bootstrap(predictions, method, baseline, repeats, seed)
@@ -101,7 +103,7 @@ def summarize(predictions: pd.DataFrame, repeats: int, seed: int) -> dict:
             "positive_paired_ci90": comparison["ci90"][0] > 0,
             "beats_all_standalone_baselines": all(
                 shared > scores[baseline]["balanced_accuracy"]
-                for baseline in ("logistic_full", "logistic_dense", "lda")
+                for baseline in ("logistic_full", "logistic_dense", "lda", *supervised)
             ),
             "beats_simple_centering": shared > scores[f"centered_{size}"]["balanced_accuracy"],
             "shuffle_removes_at_least_half_gain": (

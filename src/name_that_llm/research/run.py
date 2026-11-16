@@ -77,6 +77,16 @@ def record(
 def run_fold(frame: pd.DataFrame, fold: int, args: argparse.Namespace, embeddings) -> tuple:
     train = frame[frame["fold"] != fold]
     validation = frame[frame["fold"] == fold]
+    supervised_predictions, artifact_manifest = None, None
+    if args.fold_artifacts:
+        from name_that_llm.research.fold_embeddings import load_fold_artifact
+
+        embeddings, supervised_predictions, artifact_manifest = load_fold_artifact(
+            args.fold_artifacts / f"fold-{fold}",
+            frame,
+            fold,
+            folds_path=args.data_dir / "folds.csv",
+        )
     x, xv, full_x, full_xv = make_features(
         train, validation, args.features, args.dimension, args.max_features, args.seed, embeddings
     )
@@ -98,6 +108,9 @@ def run_fold(frame: pd.DataFrame, fold: int, args: argparse.Namespace, embedding
         ),
     }
     predictions = [record(validation, model.predict_proba(xv), "independent")]
+    if supervised_predictions is not None:
+        predictions.append(supervised_predictions)
+        info["supervised_artifact"] = artifact_manifest
     for name, features, val_features in (
         ("logistic_full", full_x, full_xv),
         ("logistic_dense", x, xv),
@@ -181,6 +194,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--features", choices=("word", "char", "embeddings"), default="word")
     parser.add_argument("--embeddings", type=Path)
+    parser.add_argument("--fold-artifacts", type=Path, help="Supervised artifacts under fold-K/")
     parser.add_argument(
         "--embedding-provenance", help="Extractor, revision, pooling, and training history"
     )
@@ -199,7 +213,13 @@ def main() -> None:
         parser.error("Use positive dimensions/threads and at least 100 bootstrap draws.")
     if len(set(args.partition_seeds)) != len(args.partition_seeds):
         parser.error("Partition seeds must be distinct.")
-    if args.features == "embeddings" and (not args.embeddings or not args.embedding_provenance):
+    if args.fold_artifacts and (args.embeddings or args.features != "embeddings"):
+        parser.error("Use --fold-artifacts with --features embeddings and without --embeddings.")
+    if (
+        args.features == "embeddings"
+        and not args.fold_artifacts
+        and (not args.embeddings or not args.embedding_provenance)
+    ):
         parser.error("Embeddings require --embeddings and --embedding-provenance.")
     if args.features != "embeddings" and args.embeddings:
         parser.error("Use --features embeddings with --embeddings.")
