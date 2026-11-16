@@ -17,7 +17,7 @@ class SplitConfig:
 
 @dataclass(frozen=True)
 class TokenizerConfig:
-    vocab_size: int = 8000
+    vocab_size: int = 4000
     min_frequency: int = 2
 
 

@@ -8,7 +8,7 @@ It uses a separate runner and does not change the assignment experiments below.
 `src/name_that_llm/config.py` owns the experiment defaults in frozen dataclasses:
 
 - `SplitConfig`: source groups, number of cross-validation folds `5`, and seed `42`.
-- `TokenizerConfig`: BPE vocabulary size `8000` and minimum pair frequency `2`.
+- `TokenizerConfig`: BPE vocabulary size `4000` and minimum pair frequency `2`.
 - `TrainingConfig`: model (`log-linear`, `mlp`, or `svm`), encoder (`bag-of-words`,
   `token-indicator`, or `tf-idf`), L2 normalization of the document vectors, the
   convergence rule (`max_epochs`, `tol`, `patience`), batch size, learning rate,
