@@ -1,4 +1,4 @@
-"""Download the public forum dataset and create deterministic cross-validation folds."""
+"""Download the forum dataset and pretrained vectors, and create cross-validation folds."""
 
 import argparse
 import csv
@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import stat
+import sys
 import tempfile
 import zipfile
 from datetime import UTC, datetime
@@ -15,6 +16,7 @@ from urllib.request import Request, urlopen
 
 from name_that_llm.config import DATA_DIR
 from name_that_llm.data import fold_summary, write_data_splits
+from name_that_llm.embeddings import PRETRAINED_MODELS, download_pretrained
 
 DATASET = "prvsiyan/prvsiyans-extended-name-that-llm-dataset"
 DATASET_URL = f"https://www.kaggle.com/datasets/{DATASET}"
@@ -168,7 +170,21 @@ def main() -> None:
         parser.exit(1, f"Download failed: {error}\n")
     print(f"Verified {DATASET}, version {manifest['version']}: {output}")
     print(f"Clean passages before baseline split filtering: {manifest['clean_rows']:,}")
-    print(f"{len(folds):,} rows, {fold_summary(folds)} -> {args.split_output / 'folds.csv'}")
+    print(
+        f"{len(folds):,} rows, {fold_summary(folds)} -> {args.split_output / 'folds.csv'}"
+    )
+
+    embeddings_failed = False
+    for option, model_name in PRETRAINED_MODELS.items():
+        try:
+            path = download_pretrained(option)
+        except Exception as error:
+            print(f"{model_name} download failed: {error}", file=sys.stderr)
+            embeddings_failed = True
+        else:
+            print(f"Cached {model_name}: {path}")
+    if embeddings_failed:
+        parser.exit(1)
 
 
 if __name__ == "__main__":

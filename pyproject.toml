@@ -5,6 +5,7 @@ description = "Kaggle Name That LLM competition work for UvA MSc AI NLP course."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
+    "gensim>=4.4,<5",
     "joblib>=1.4,<2",
     "matplotlib>=3.10,<4",
     "numpy>=2.0,<3",
