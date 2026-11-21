@@ -46,6 +46,7 @@ PRETRAINED_MODELS = {
     "glove": "glove-wiki-gigaword-50",
     "fasttext": "fasttext-wiki-news-subwords-300",
 }
+EMBEDDING_POOLING = ("mean", "lstm")
 
 
 def download_pretrained(option: str) -> Path:
@@ -73,10 +74,22 @@ def encode_embeddings(
     return [encoder.from_words(words) for words in documents]
 
 
-def encode_mean_pooled(
-    texts: Sequence[str], encoder: WordEmbeddingEncoder, *, normalize: bool = False
-) -> np.ndarray:
-    """Average the word vectors in each text into one fixed-width document vector."""
+def encode_embedding(
+    texts: Sequence[str],
+    encoder: WordEmbeddingEncoder,
+    *,
+    pooling: str = "mean",
+    normalize: bool = False,
+) -> np.ndarray | list[np.ndarray]:
+    """Return mean-pooled document vectors or ordered sequences for the LSTM.
+
+    Normalize pooled means here. The LSTM model normalizes its own document vectors.
+    """
+    if pooling == "lstm":
+        return [encoder(text) for text in texts]
+    if pooling != "mean":
+        raise ValueError(f"Unknown embedding pooling method: {pooling}")
+
     features = np.zeros((len(texts), len(encoder)), dtype=np.float32)
     for row, text in enumerate(texts):
         vectors = encoder(text)

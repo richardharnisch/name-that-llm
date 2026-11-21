@@ -11,7 +11,7 @@ from name_that_llm.config import MLPConfig, TokenizerConfig, TrainingConfig
 from name_that_llm.embeddings import (
     WordEmbeddingEncoder,
     build_embedding_encoder,
-    encode_mean_pooled,
+    encode_embedding,
 )
 from name_that_llm.encodings import ENCODERS, build_encoder, encode_bpe
 from name_that_llm.preprocess import load_fold_rows, preprocess_data
@@ -42,6 +42,8 @@ def run_fold(
     start = perf_counter()
     tokenizer_path = None
     if config.encoder in ENCODERS:
+        if config.pooling is not None:
+            raise ValueError("--pooling requires --encoder glove or fasttext.")
         tokenizer_path, sample_directory, reused = preprocess_data(
             directory=data_dir,
             tokenizer_root=tokenizer_root,
@@ -70,7 +72,7 @@ def run_fold(
             frame.assign(label=frame["model"].map(label_ids))
             for frame in (frames["train"], frames["val"])
         )
-        feature_metadata = {"tokenizer": "whitespace", "pooling": "mean"}
+        feature_metadata = {"tokenizer": "whitespace"}
     if config.limit_per_class is not None:
         train, val = (
             frame.groupby("model", group_keys=False).sample(
@@ -90,9 +92,17 @@ def run_fold(
         feature_metadata["vocab_size"] = len(encoder)
     else:
         encoder = word_encoder or build_embedding_encoder(config.encoder)
-        print(f"Encoder: {config.encoder}; mean pooling over {len(encoder)} dimensions", flush=True)
-        x_train = encode_mean_pooled(train["text"].tolist(), encoder, normalize=config.normalize)
-        x_val = encode_mean_pooled(val["text"].tolist(), encoder, normalize=config.normalize)
+        pooling = config.pooling or "mean"
+        print(
+            f"Encoder: {config.encoder}; {pooling} pooling, {len(encoder)} dimensions", flush=True
+        )
+        x_train = encode_embedding(
+            train["text"].tolist(), encoder, pooling=pooling, normalize=config.normalize
+        )
+        x_val = encode_embedding(
+            val["text"].tolist(), encoder, pooling=pooling, normalize=config.normalize
+        )
+        feature_metadata["pooling"] = pooling
         feature_metadata["embedding_dim"] = len(encoder)
     y_train = torch.tensor(train["label"].to_numpy(), dtype=torch.long)
     y_val = torch.tensor(val["label"].to_numpy(), dtype=torch.long)

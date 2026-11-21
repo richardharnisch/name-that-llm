@@ -184,6 +184,7 @@ def save_cv_report(
         "folds": folds,
         "model": config.model,
         "encoder": config.encoder,
+        **({"pooling": config.pooling} if config.pooling is not None else {}),
         "scores": summarise(results),
         "epochs_run": [result["epochs_run"] for result in results],
         "converged": [result["converged"] for result in results],

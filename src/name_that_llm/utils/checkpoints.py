@@ -7,7 +7,12 @@ import torch
 import torch.nn as nn
 
 from name_that_llm.classifiers import build_model
-from name_that_llm.config import MLPConfig, TokenizerConfig, TrainingConfig
+from name_that_llm.config import (
+    DEFAULT_LSTM_HIDDEN_SIZE,
+    MLPConfig,
+    TokenizerConfig,
+    TrainingConfig,
+)
 from name_that_llm.encodings import TFIDF, L2Normalized
 from name_that_llm.utils.data import LABELS
 from name_that_llm.utils.encoder import Encoder
@@ -25,7 +30,9 @@ def save_checkpoint(
     """Save everything needed to rebuild the model and its input features."""
     base = encoder.encoder if isinstance(encoder, L2Normalized) else encoder
     if tokenizer_path is None:
-        tokenizer_metadata = {"tokenizer": "whitespace", "pooling": "mean"}
+        tokenizer_metadata = {"tokenizer": "whitespace", "pooling": config.pooling or "mean"}
+        if config.pooling == "lstm":
+            tokenizer_metadata["lstm_hidden_size"] = config.lstm_hidden_size
     else:
         tokenizer_metadata = {
             "tokenizer_path": str(tokenizer_path),
@@ -54,7 +61,12 @@ def save_checkpoint(
 def load_checkpoint(path: Path) -> tuple[nn.Module, dict]:
     """Load a saved model in evaluation mode, with its metadata."""
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    config = TrainingConfig(model=checkpoint["model"])
+    config = TrainingConfig(
+        model=checkpoint["model"],
+        normalize=checkpoint.get("normalize", False),
+        pooling=checkpoint.get("pooling"),
+        lstm_hidden_size=checkpoint.get("lstm_hidden_size", DEFAULT_LSTM_HIDDEN_SIZE),
+    )
     mlp_config = MLPConfig(
         hidden=tuple(checkpoint["hidden"]), activation=checkpoint["activation"]
     )

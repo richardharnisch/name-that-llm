@@ -1,4 +1,4 @@
-"""Cross-validate PyTorch classifiers on BPE features or mean-pooled word embeddings."""
+"""Cross-validate PyTorch classifiers on BPE features or pretrained word embeddings."""
 
 import argparse
 from pathlib import Path
@@ -17,7 +17,7 @@ from name_that_llm.config import (
     TrainingConfig,
     save_config,
 )
-from name_that_llm.embeddings import PRETRAINED_MODELS, build_embedding_encoder
+from name_that_llm.embeddings import EMBEDDING_POOLING, PRETRAINED_MODELS, build_embedding_encoder
 from name_that_llm.encodings import ENCODERS
 from name_that_llm.experiment import run_fold
 from name_that_llm.utils.data import load_folds
@@ -26,6 +26,9 @@ from name_that_llm.utils.training_report import save_cv_report
 
 def run(args: argparse.Namespace) -> None:
     start = perf_counter()
+    uses_word_vectors = args.encoder in PRETRAINED_MODELS
+    if args.pooling is not None and not uses_word_vectors:
+        raise ValueError("--pooling requires --encoder glove or fasttext.")
     config = TrainingConfig(
         model=args.model,
         encoder=args.encoder,
@@ -38,6 +41,7 @@ def run(args: argparse.Namespace) -> None:
         weight_decay=args.weight_decay,
         seed=args.seed,
         limit_per_class=args.limit_per_class,
+        pooling=args.pooling or ("mean" if uses_word_vectors else None),
     )
     mlp_config = MLPConfig(hidden=tuple(args.hidden), activation=DEFAULT_MLP.activation)
     tokenizer_config = TokenizerConfig(
@@ -49,7 +53,7 @@ def run(args: argparse.Namespace) -> None:
         raise ValueError(f"Fold {args.fold} does not exist. Folds: {available}.")
 
     word_encoder = None
-    if config.encoder in PRETRAINED_MODELS:
+    if uses_word_vectors:
         print(f"Loading {config.encoder} word vectors", flush=True)
         word_encoder = build_embedding_encoder(config.encoder)
 
@@ -102,6 +106,11 @@ def main() -> None:
     parser.add_argument("--model", choices=MODELS, default=DEFAULT_TRAINING.model)
     parser.add_argument(
         "--encoder", choices=(*ENCODERS, *PRETRAINED_MODELS), default=DEFAULT_TRAINING.encoder
+    )
+    parser.add_argument(
+        "--pooling",
+        choices=EMBEDDING_POOLING,
+        help="Document representation for GloVe or fastText (default: mean)",
     )
     parser.add_argument(
         "--hidden",

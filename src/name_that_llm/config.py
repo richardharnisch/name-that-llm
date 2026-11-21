@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 DEFAULT_SEED = 42
+DEFAULT_LSTM_HIDDEN_SIZE = 64
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,8 @@ class TrainingConfig:
     weight_decay: float = 1e-4
     seed: int = DEFAULT_SEED
     limit_per_class: int | None = None
+    pooling: str | None = None  # "mean" or "lstm" for word embeddings
+    lstm_hidden_size: int = DEFAULT_LSTM_HIDDEN_SIZE
 
 
 @dataclass(frozen=True)
