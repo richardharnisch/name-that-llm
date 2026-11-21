@@ -2,10 +2,11 @@
 
 ## Source layout
 
-In `src/name_that_llm/`, start with `config.py`, `classifiers.py`, `encodings.py`,
-`embeddings.py`, and `train.py` when changing an experiment. The command modules
-for data preparation and result comparison also live there. Shared data and
-tokenizer code, checkpoint handling, and training command and report code live in `utils/`.
+Start with `src/name_that_llm/experiment.py` to change how each fold prepares inputs,
+selects an encoder, and trains a classifier. Settings live in `config.py`, with
+model and encoder implementations in `classifiers.py`, `encodings.py`, and
+`embeddings.py`. The training loop is in `train.py`. Command-line parsing and
+reports are handled by `utils/training_command.py` and `utils/training_report.py`.
 
 ## Configuration
 

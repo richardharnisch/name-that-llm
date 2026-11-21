@@ -97,9 +97,9 @@ def fit(
 
 def main() -> None:
     """Run the cross-validation command."""
-    from name_that_llm.utils.train_cli import main as cli_main
+    from name_that_llm.utils.training_command import main as command_main
 
-    cli_main()
+    command_main()
 
 
 if __name__ == "__main__":
