@@ -2,8 +2,12 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 import numpy as np
+import pandas as pd
+import scipy.sparse as sp
 
 from .tokenizer import Tokenizer
+
+ENCODERS = ("bag-of-words", "token-indicator", "tf-idf")
 
 
 class Encoder(ABC):
@@ -125,3 +129,45 @@ class TFIDF(Encoder):
             tf /= len(token_id_list)
 
         return tf * self.idf
+
+
+def build_encoder(
+    name: str, tokenizer: Tokenizer, train_texts: pd.Series, normalize: bool = False
+) -> Encoder:
+    """Create an encoder. TF-IDF weights come from training texts only."""
+    if name == "bag-of-words":
+        encoder = BagOfWords(tokenizer)
+    elif name == "token-indicator":
+        encoder = TokenIndicator(tokenizer)
+    else:
+        encoder = TFIDF(tokenizer, train_texts.to_numpy())
+    return L2Normalized(encoder) if normalize else encoder
+
+
+def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> Encoder:
+    """Rebuild the encoder a saved model was trained with."""
+    name = checkpoint["encoder"]
+    if name == "tf-idf":
+        encoder = TFIDF.from_idf(tokenizer, checkpoint["idf"].numpy())
+        return L2Normalized(encoder) if checkpoint.get("normalize", False) else encoder
+    return build_encoder(
+        name, tokenizer, pd.Series(dtype=str), checkpoint.get("normalize", False)
+    )
+
+
+def encode_sparse(input_ids: pd.Series, encoder: Encoder) -> sp.csr_matrix:
+    """Encode saved token IDs into a sparse document-feature matrix.
+
+    Build one dense document vector at a time and retain its nonzero entries.
+    """
+    indices, data, indptr = [], [], [0]
+    for ids in input_ids:
+        vector = encoder.from_ids(ids)
+        nonzero = np.flatnonzero(vector)
+        indices.append(nonzero.astype(np.int32))
+        data.append(vector[nonzero].astype(np.float32))
+        indptr.append(indptr[-1] + len(nonzero))
+    return sp.csr_matrix(
+        (np.concatenate(data), np.concatenate(indices), np.asarray(indptr)),
+        shape=(len(input_ids), len(encoder)),
+    )

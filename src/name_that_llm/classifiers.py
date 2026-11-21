@@ -1,6 +1,8 @@
 import torch.nn as nn
 
-from name_that_llm.config import DEFAULT_MLP
+from name_that_llm.config import DEFAULT_MLP, MLPConfig, TrainingConfig
+
+MODELS = ("log-linear", "mlp", "svm")
 
 
 class LogLinear(nn.Module):
@@ -27,3 +29,22 @@ class MLP(nn.Module):
         for layer in self.hidden_layers:
             x = self.act(layer(x))  # a = σ(W a + b)
         return self.out(x)  # logits z = W_out a + b_out
+
+
+def build_model(
+    config: TrainingConfig, mlp_config: MLPConfig, d_in: int, n_classes: int
+) -> nn.Module:
+    if config.model in ("log-linear", "svm"):
+        # A linear SVM is the same linear layer as log-linear, trained with a hinge loss.
+        return LogLinear(d_in, n_classes)
+    return MLP(
+        d_in,
+        n_classes,
+        hidden=mlp_config.hidden,
+        act=getattr(nn, mlp_config.activation),
+    )
+
+
+def build_loss(config: TrainingConfig) -> nn.Module:
+    """Multi-class hinge loss for the SVM; cross-entropy for the probabilistic models."""
+    return nn.MultiMarginLoss() if config.model == "svm" else nn.CrossEntropyLoss()
