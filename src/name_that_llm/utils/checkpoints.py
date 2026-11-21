@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from name_that_llm.classifiers import build_model
 from name_that_llm.config import MLPConfig, TokenizerConfig, TrainingConfig
-from name_that_llm.encodings import TFIDF, Encoder, L2Normalized
+from name_that_llm.encodings import TFIDF, BPEEncoder, L2Normalized
 from name_that_llm.utils.data import LABELS
 
 
@@ -19,7 +19,7 @@ def save_checkpoint(
     mlp_config: MLPConfig,
     tokenizer_config: TokenizerConfig,
     tokenizer_path: Path,
-    encoder: Encoder,
+    encoder: BPEEncoder,
 ) -> None:
     """Save everything needed to rebuild the model and its input features."""
     base = encoder.encoder if isinstance(encoder, L2Normalized) else encoder

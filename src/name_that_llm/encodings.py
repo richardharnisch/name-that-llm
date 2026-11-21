@@ -1,44 +1,42 @@
-from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from abc import abstractmethod
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
+from .utils.encoder import Encoder
 from .utils.tokenizer import Tokenizer
 
-ENCODERS = ("bag-of-words", "token-indicator", "tf-idf")
 
+class BPEEncoder(Encoder):
+    """Encode text or cached BPE token IDs as a single document vector."""
 
-class Encoder(ABC):
-    @abstractmethod
+    def __init__(self, tokenizer: Tokenizer):
+        self.tokenizer = tokenizer
+
     def __len__(self) -> int:
-        """Dimensionality of the representation space"""
-        pass
+        return len(self.tokenizer.get_vocab())
+
+    def __call__(self, x: str) -> np.ndarray:
+        return self.from_ids(self.tokenizer.encode(x).ids)
 
     @abstractmethod
-    def __call__(self, x: str) -> np.ndarray:
-        """Represent x as a D-dimensional vector of real numbers"""
-        pass
+    def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
+        """Encode cached token IDs without tokenizing the text again."""
 
 
-class L2Normalized(Encoder):
-    """Scale the vectors of another encoder to unit L2 norm.
+class L2Normalized(BPEEncoder):
+    """Scale the vectors of a BPE encoder to unit L2 norm.
 
     This has no fitted parameters, so it is safe across folds. A zero vector stays zero.
     """
 
-    def __init__(self, encoder: Encoder):
+    def __init__(self, encoder: BPEEncoder):
+        super().__init__(encoder.tokenizer)
         self.encoder = encoder
 
-    def __len__(self) -> int:
-        return len(self.encoder)
-
-    def __call__(self, x: str) -> np.ndarray:
-        return self._scale(self.encoder(x))
-
     def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
-        """Represent saved token IDs without tokenizing the text again."""
         return self._scale(self.encoder.from_ids(token_ids))
 
     @staticmethod
@@ -47,18 +45,7 @@ class L2Normalized(Encoder):
         return vector / norm if norm > 0 else vector
 
 
-class TokenIndicator(Encoder):
-    def __init__(self, tokenizer: Tokenizer):
-        self.tokenizer = tokenizer
-
-    def __len__(self) -> int:
-        """Dimensionality of the representation space"""
-        return len(self.tokenizer.get_vocab())
-
-    def __call__(self, x: str) -> np.ndarray:
-        """Represent x as a D-dimensional vector of real numbers"""
-        return self.from_ids(self.tokenizer.encode(x).ids)
-
+class TokenIndicator(BPEEncoder):
     def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
         """Represent saved token IDs without tokenizing the text again."""
         unique_token_ids = list(set(token_ids))
@@ -70,17 +57,7 @@ class TokenIndicator(Encoder):
         return vector
 
 
-class BagOfWords(Encoder):
-    def __init__(self, tokenizer: Tokenizer):
-        self.tokenizer = tokenizer
-
-    def __len__(self) -> int:
-        return len(self.tokenizer.get_vocab())
-
-    def __call__(self, x: str) -> np.ndarray:
-        """Represent x as a D-dimensional vector of real numbers"""
-        return self.from_ids(self.tokenizer.encode(x).ids)
-
+class BagOfWords(BPEEncoder):
     def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
         """Represent saved token IDs without tokenizing the text again."""
         vector = np.zeros(len(self))
@@ -89,9 +66,9 @@ class BagOfWords(Encoder):
         return vector
 
 
-class TFIDF(Encoder):
+class TFIDF(BPEEncoder):
     def __init__(self, tokenizer: Tokenizer, documents: np.ndarray):
-        self.tokenizer = tokenizer
+        super().__init__(tokenizer)
         N = len(documents)
         if N == 0:
             raise ValueError("TF-IDF requires at least one training document.")
@@ -108,17 +85,11 @@ class TFIDF(Encoder):
         """Rebuild an encoder from saved IDF weights, without the training texts."""
         idf = np.asarray(idf, dtype=np.float64)
         encoder = cls.__new__(cls)
-        encoder.tokenizer = tokenizer
+        BPEEncoder.__init__(encoder, tokenizer)
         if idf.shape != (len(encoder),):
             raise ValueError(f"Expected {len(encoder)} IDF weights, got shape {idf.shape}.")
         encoder.idf = idf
         return encoder
-
-    def __len__(self) -> int:
-        return len(self.tokenizer.get_vocab())
-
-    def __call__(self, x: str) -> np.ndarray:
-        return self.from_ids(self.tokenizer.encode(x).ids)
 
     def from_ids(self, token_ids: Sequence[int]) -> np.ndarray:
         """Represent saved token IDs without tokenizing the text again."""
@@ -131,20 +102,27 @@ class TFIDF(Encoder):
         return tf * self.idf
 
 
+_BPE_ENCODERS: dict[str, Callable[[Tokenizer, pd.Series], BPEEncoder]] = {
+    "bag-of-words": lambda tokenizer, _: BagOfWords(tokenizer),
+    "token-indicator": lambda tokenizer, _: TokenIndicator(tokenizer),
+    "tf-idf": lambda tokenizer, texts: TFIDF(tokenizer, texts.to_numpy()),
+}
+ENCODERS = tuple(_BPE_ENCODERS)
+
+
 def build_encoder(
     name: str, tokenizer: Tokenizer, train_texts: pd.Series, normalize: bool = False
-) -> Encoder:
+) -> BPEEncoder:
     """Create an encoder. TF-IDF weights come from training texts only."""
-    if name == "bag-of-words":
-        encoder = BagOfWords(tokenizer)
-    elif name == "token-indicator":
-        encoder = TokenIndicator(tokenizer)
-    else:
-        encoder = TFIDF(tokenizer, train_texts.to_numpy())
+    try:
+        create = _BPE_ENCODERS[name]
+    except KeyError as error:
+        raise ValueError(f"Unknown BPE encoder: {name}") from error
+    encoder = create(tokenizer, train_texts)
     return L2Normalized(encoder) if normalize else encoder
 
 
-def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> Encoder:
+def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> BPEEncoder:
     """Rebuild the encoder a saved model was trained with."""
     name = checkpoint["encoder"]
     if name == "tf-idf":
@@ -155,7 +133,7 @@ def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> Encoder:
     )
 
 
-def encode_sparse(input_ids: pd.Series, encoder: Encoder) -> sp.csr_matrix:
+def encode_sparse(input_ids: pd.Series, encoder: BPEEncoder) -> sp.csr_matrix:
     """Encode saved token IDs into a sparse document-feature matrix.
 
     Build one dense document vector at a time and retain its nonzero entries.
