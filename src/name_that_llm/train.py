@@ -9,15 +9,18 @@ from sklearn.metrics import accuracy_score, f1_score
 from name_that_llm.classifiers import build_loss
 from name_that_llm.config import TrainingConfig
 
+FeatureMatrix = np.ndarray | sp.csr_matrix
 
-def dense_batch(matrix: sp.csr_matrix, rows: np.ndarray | slice) -> torch.Tensor:
-    """Turn the chosen rows into a dense tensor. Only one batch is dense at a time."""
-    return torch.from_numpy(matrix[rows].toarray())
+
+def dense_batch(matrix: FeatureMatrix, rows: np.ndarray | slice) -> torch.Tensor:
+    """Gather the chosen rows, converting sparse features one batch at a time."""
+    batch = matrix[rows]
+    return torch.from_numpy(batch.toarray() if sp.issparse(batch) else batch)
 
 
 @torch.no_grad()
 def predict_logits(
-    model: nn.Module, features: sp.csr_matrix, batch_size: int
+    model: nn.Module, features: FeatureMatrix, batch_size: int
 ) -> torch.Tensor:
     model.eval()
     return torch.cat(
@@ -30,9 +33,9 @@ def predict_logits(
 
 def fit(
     model: nn.Module,
-    x_train: sp.csr_matrix,
+    x_train: FeatureMatrix,
     y_train: torch.Tensor,
-    x_val: sp.csr_matrix,
+    x_val: FeatureMatrix,
     y_val: torch.Tensor,
     config: TrainingConfig,
 ) -> tuple[list[dict], bool]:

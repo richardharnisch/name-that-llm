@@ -8,13 +8,22 @@ import torch
 
 from name_that_llm.classifiers import build_model
 from name_that_llm.config import MLPConfig, TokenizerConfig, TrainingConfig
-from name_that_llm.encodings import build_encoder, encode_sparse
-from name_that_llm.preprocess import preprocess_data
+from name_that_llm.embeddings import (
+    WordEmbeddingEncoder,
+    build_embedding_encoder,
+    encode_mean_pooled,
+)
+from name_that_llm.encodings import ENCODERS, build_encoder, encode_bpe
+from name_that_llm.preprocess import load_fold_rows, preprocess_data
 from name_that_llm.train import fit, predict_logits
 from name_that_llm.utils.checkpoints import save_checkpoint
 from name_that_llm.utils.data import LABELS
 from name_that_llm.utils.tokenizer import Tokenizer
-from name_that_llm.utils.training_report import save_fold_metrics, save_learning_curves, score_fold
+from name_that_llm.utils.training_report import (
+    save_fold_metrics,
+    save_learning_curves,
+    score_fold,
+)
 
 
 def run_fold(
@@ -27,24 +36,41 @@ def run_fold(
     tokenizer_root: Path,
     tokenized_root: Path | None,
     output: Path,
+    word_encoder: WordEmbeddingEncoder | None = None,
 ) -> tuple[dict, list[str], list[str]]:
     """Prepare features, train a classifier, and evaluate it on the held-out fold."""
     start = perf_counter()
-    tokenizer_path, sample_directory, reused = preprocess_data(
-        directory=data_dir,
-        tokenizer_root=tokenizer_root,
-        output=tokenized_root,
-        vocab_size=tokenizer_config.vocab_size,
-        min_frequency=tokenizer_config.min_frequency,
-        fold=fold,
-    )
-    print(
-        f"{'Reused' if reused else 'Created'} BPE tokenizer and samples: {tokenizer_path}",
-        flush=True,
-    )
-    tokenizer = Tokenizer.from_file(str(tokenizer_path))
-    train = pd.read_parquet(sample_directory / "train.parquet")
-    val = pd.read_parquet(sample_directory / "val.parquet")
+    tokenizer_path = None
+    if config.encoder in ENCODERS:
+        tokenizer_path, sample_directory, reused = preprocess_data(
+            directory=data_dir,
+            tokenizer_root=tokenizer_root,
+            output=tokenized_root,
+            vocab_size=tokenizer_config.vocab_size,
+            min_frequency=tokenizer_config.min_frequency,
+            fold=fold,
+        )
+        print(
+            f"{'Reused' if reused else 'Created'} BPE tokenizer and samples: {tokenizer_path}",
+            flush=True,
+        )
+        train = pd.read_parquet(sample_directory / "train.parquet")
+        val = pd.read_parquet(sample_directory / "val.parquet")
+        feature_metadata = {
+            "tokenizer": "bpe",
+            "tokenizer_path": str(tokenizer_path),
+            "sample_directory": str(sample_directory),
+            "requested_vocab_size": tokenizer_config.vocab_size,
+            "min_frequency": tokenizer_config.min_frequency,
+        }
+    else:
+        frames = load_fold_rows(data_dir, fold)
+        label_ids = {label: index for index, label in enumerate(LABELS)}
+        train, val = (
+            frame.assign(label=frame["model"].map(label_ids))
+            for frame in (frames["train"], frames["val"])
+        )
+        feature_metadata = {"tokenizer": "whitespace", "pooling": "mean"}
     if config.limit_per_class is not None:
         train, val = (
             frame.groupby("model", group_keys=False).sample(
@@ -55,10 +81,19 @@ def run_fold(
         )
 
     print(f"Train: {len(train):,} rows; validation: {len(val):,} rows", flush=True)
-    encoder = build_encoder(config.encoder, tokenizer, train["text"], config.normalize)
-    print(f"Encoder: {config.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
-    x_train = encode_sparse(train["input_ids"], encoder)
-    x_val = encode_sparse(val["input_ids"], encoder)
+    if tokenizer_path is not None:
+        tokenizer = Tokenizer.from_file(str(tokenizer_path))
+        encoder = build_encoder(config.encoder, tokenizer, train["text"], config.normalize)
+        print(f"Encoder: {config.encoder}; vocabulary: {len(encoder):,} tokens", flush=True)
+        x_train = encode_bpe(train["input_ids"], encoder)
+        x_val = encode_bpe(val["input_ids"], encoder)
+        feature_metadata["vocab_size"] = len(encoder)
+    else:
+        encoder = word_encoder or build_embedding_encoder(config.encoder)
+        print(f"Encoder: {config.encoder}; mean pooling over {len(encoder)} dimensions", flush=True)
+        x_train = encode_mean_pooled(train["text"].tolist(), encoder, normalize=config.normalize)
+        x_val = encode_mean_pooled(val["text"].tolist(), encoder, normalize=config.normalize)
+        feature_metadata["embedding_dim"] = len(encoder)
     y_train = torch.tensor(train["label"].to_numpy(), dtype=torch.long)
     y_val = torch.tensor(val["label"].to_numpy(), dtype=torch.long)
 
@@ -85,14 +120,9 @@ def run_fold(
         config,
         mlp_config,
         metadata={
-            "tokenizer": "bpe",
-            "tokenizer_path": str(tokenizer_path),
-            "sample_directory": str(sample_directory),
-            "requested_vocab_size": tokenizer_config.vocab_size,
-            "min_frequency": tokenizer_config.min_frequency,
+            **feature_metadata,
             "train_rows": len(train),
             "validation_rows": len(val),
-            "vocab_size": len(encoder),
             "parameters": sum(p.numel() for p in model.parameters()),
         },
         scores=scores,

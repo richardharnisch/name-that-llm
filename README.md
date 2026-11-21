@@ -100,15 +100,23 @@ You can also use `uv run python scripts/train.py` or `uv run python -m name_that
 | Option | Choices |
 |---|---|
 | `--model` | `log-linear` (default), `mlp`, `svm` |
-| `--encoder` | `bag-of-words` (default), `token-indicator`, `tf-idf` |
+| `--encoder` | `bag-of-words` (default), `token-indicator`, `tf-idf`, `glove`, `fasttext` |
 
 `svm` uses the same linear layer as `log-linear`, trained with a multi-class hinge loss.
 Its scores are not probabilities, so its log loss is not reported.
 
-For each fold, the command prepares or reuses the BPE tokenizer and tokenized samples, builds
+For each BPE fold, the command prepares or reuses the BPE tokenizer and tokenized samples, builds
 the features from the saved `input_ids` without tokenizing again, trains a new model on the
 training set of the fold, and evaluates it on the validation set of the fold. The tokenizer
 and the TF-IDF weights are fitted on the training set of the fold only.
+
+For GloVe or fastText, the command splits each passage on whitespace and averages its
+word vectors. Unknown words contribute zero vectors. The normalization setting applies
+to the pooled document vector. To try one fold quickly:
+
+```sh
+uv run ntl-train --encoder glove --fold 0 --max-epochs 2 --limit-per-class 20 --output artifacts/quick-glove
+```
 
 **Feature scale.** By default, each document vector is scaled to unit L2 norm
 (`--normalize`; use `--no-normalize` to turn it off). The three encoders produce vectors

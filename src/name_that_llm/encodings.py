@@ -133,7 +133,7 @@ def encoder_from_checkpoint(checkpoint: dict, tokenizer: Tokenizer) -> BPEEncode
     )
 
 
-def encode_sparse(input_ids: pd.Series, encoder: BPEEncoder) -> sp.csr_matrix:
+def encode_bpe(input_ids: pd.Series, encoder: BPEEncoder) -> sp.csr_matrix:
     """Encode saved token IDs into a sparse document-feature matrix.
 
     Build one dense document vector at a time and retain its nonzero entries.

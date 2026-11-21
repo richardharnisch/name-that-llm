@@ -8,8 +8,9 @@ import torch.nn as nn
 
 from name_that_llm.classifiers import build_model
 from name_that_llm.config import MLPConfig, TokenizerConfig, TrainingConfig
-from name_that_llm.encodings import TFIDF, BPEEncoder, L2Normalized
+from name_that_llm.encodings import TFIDF, L2Normalized
 from name_that_llm.utils.data import LABELS
+from name_that_llm.utils.encoder import Encoder
 
 
 def save_checkpoint(
@@ -18,25 +19,33 @@ def save_checkpoint(
     config: TrainingConfig,
     mlp_config: MLPConfig,
     tokenizer_config: TokenizerConfig,
-    tokenizer_path: Path,
-    encoder: BPEEncoder,
+    tokenizer_path: Path | None,
+    encoder: Encoder,
 ) -> None:
     """Save everything needed to rebuild the model and its input features."""
     base = encoder.encoder if isinstance(encoder, L2Normalized) else encoder
-    extra = {"idf": torch.from_numpy(base.idf)} if isinstance(base, TFIDF) else {}
+    if tokenizer_path is None:
+        tokenizer_metadata = {"tokenizer": "whitespace", "pooling": "mean"}
+    else:
+        tokenizer_metadata = {
+            "tokenizer_path": str(tokenizer_path),
+            "tokenizer": asdict(tokenizer_config),
+        }
+    if isinstance(base, TFIDF):
+        tokenizer_metadata["idf"] = torch.from_numpy(base.idf)
     torch.save(
         {
-            **extra,
             "state_dict": model.state_dict(),
             "model": config.model,
             "encoder": config.encoder,
-            "normalize": isinstance(encoder, L2Normalized),
+            "normalize": (
+                config.normalize if tokenizer_path is None else isinstance(encoder, L2Normalized)
+            ),
             "d_in": len(encoder),
             "labels": list(LABELS),
             "hidden": list(mlp_config.hidden),
             "activation": mlp_config.activation,
-            "tokenizer_path": str(tokenizer_path),
-            "tokenizer": asdict(tokenizer_config),
+            **tokenizer_metadata,
         },
         path,
     )

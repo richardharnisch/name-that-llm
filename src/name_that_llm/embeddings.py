@@ -71,3 +71,18 @@ def encode_embeddings(
 ) -> list[np.ndarray]:
     """Return one dense word-vector matrix per document, in document order."""
     return [encoder.from_words(words) for words in documents]
+
+
+def encode_mean_pooled(
+    texts: Sequence[str], encoder: WordEmbeddingEncoder, *, normalize: bool = False
+) -> np.ndarray:
+    """Average the word vectors in each text into one fixed-width document vector."""
+    features = np.zeros((len(texts), len(encoder)), dtype=np.float32)
+    for row, text in enumerate(texts):
+        vectors = encoder(text)
+        if len(vectors):
+            features[row] = vectors.mean(axis=0)
+    if normalize:
+        norms = np.linalg.norm(features, axis=1, keepdims=True)
+        np.divide(features, norms, out=features, where=norms > 0)
+    return features

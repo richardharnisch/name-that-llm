@@ -1,4 +1,4 @@
-"""Cross-validate our own PyTorch classifiers on cached BPE document features."""
+"""Cross-validate PyTorch classifiers on BPE features or mean-pooled word embeddings."""
 
 import argparse
 from pathlib import Path
@@ -17,6 +17,7 @@ from name_that_llm.config import (
     TrainingConfig,
     save_config,
 )
+from name_that_llm.embeddings import PRETRAINED_MODELS, build_embedding_encoder
 from name_that_llm.encodings import ENCODERS
 from name_that_llm.experiment import run_fold
 from name_that_llm.utils.data import load_folds
@@ -47,10 +48,15 @@ def run(args: argparse.Namespace) -> None:
     if not set(folds) <= set(available):
         raise ValueError(f"Fold {args.fold} does not exist. Folds: {available}.")
 
+    word_encoder = None
+    if config.encoder in PRETRAINED_MODELS:
+        print(f"Loading {config.encoder} word vectors", flush=True)
+        word_encoder = build_embedding_encoder(config.encoder)
+
     args.output.mkdir(parents=True, exist_ok=True)
     save_config(
         args.output / "config.json",
-        tokenizer=tokenizer_config,
+        **({"tokenizer": tokenizer_config} if word_encoder is None else {}),
         training=config,
         **({"mlp": mlp_config} if config.model == "mlp" else {}),
     )
@@ -66,6 +72,7 @@ def run(args: argparse.Namespace) -> None:
             tokenizer_root=args.tokenizer_root,
             tokenized_root=args.tokenized_root,
             output=args.output / f"fold-{fold}",
+            word_encoder=word_encoder,
         )
         results.append(metrics)
         all_true += true_names
@@ -93,7 +100,9 @@ def main() -> None:
     )
     parser.add_argument("--output", type=Path, default=TRAIN_OUTPUT_DIR)
     parser.add_argument("--model", choices=MODELS, default=DEFAULT_TRAINING.model)
-    parser.add_argument("--encoder", choices=ENCODERS, default=DEFAULT_TRAINING.encoder)
+    parser.add_argument(
+        "--encoder", choices=(*ENCODERS, *PRETRAINED_MODELS), default=DEFAULT_TRAINING.encoder
+    )
     parser.add_argument(
         "--hidden",
         type=int,

@@ -29,7 +29,7 @@ def _sha256(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def _load_fold(directory: Path, fold: int) -> dict[str, pd.DataFrame]:
+def load_fold_rows(directory: Path, fold: int) -> dict[str, pd.DataFrame]:
     """Training rows are every row outside the fold; validation rows are the fold."""
     train, val = split_fold(load_folds(directory), fold)
     frames = {}
@@ -126,7 +126,7 @@ def preprocess_data(
                     save_config(sample_directory / "config.json", tokenizer=config)
                     return tokenizer_path, sample_directory, True
 
-    frames = _load_fold(directory, fold)
+    frames = load_fold_rows(directory, fold)
     tokenizer = train_tokenizer(frames["train"]["text"], vocab_size, min_frequency)
     tokenizer_path.parent.mkdir(parents=True, exist_ok=True)
     sample_directory.mkdir(parents=True, exist_ok=True)
