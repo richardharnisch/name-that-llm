@@ -8,8 +8,8 @@ import torch.nn as nn
 
 from name_that_llm.classifiers import build_model
 from name_that_llm.config import MLPConfig, TokenizerConfig, TrainingConfig
-from name_that_llm.data import LABELS
 from name_that_llm.encodings import TFIDF, Encoder, L2Normalized
+from name_that_llm.utils.data import LABELS
 
 
 def save_checkpoint(

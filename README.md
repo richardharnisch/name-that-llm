@@ -1,5 +1,12 @@
 # Name That LLM
 
+## Source layout
+
+In `src/name_that_llm/`, start with `config.py`, `classifiers.py`, `encodings.py`,
+`embeddings.py`, and `train.py` when changing an experiment. The command modules
+for data preparation and result comparison also live there. Shared data and
+tokenizer code, checkpoint handling, and training command and report code live in `utils/`.
+
 ## Configuration
 
 `src/name_that_llm/config.py` owns the experiment defaults in frozen dataclasses:
@@ -13,8 +20,8 @@
   `TokenizerConfig`.
 - `MLPConfig`: hidden layer sizes `(256,)` and activation `ReLU`.
 
-Paths are separate constants in the same file. Fixed labels remain in
-`name_that_llm.data.LABELS`. Existing CLI flags override the defaults. For a separate
+Paths are separate constants in the same file. Fixed labels are defined in
+`name_that_llm.utils.data.LABELS`. Existing CLI flags override the defaults. For a separate
 experiment configuration, use `dataclasses.replace` instead of changing shared state:
 
 ```python
@@ -187,7 +194,7 @@ and macro F1. Compare 1,000, 4,000, 8,000, and 16,000; 8,000 is a starting
 point, not an established optimum.
 
 Each Parquet row retains the source columns and adds `input_ids` (a list of integer
-token IDs) and `label` (the model's index in `name_that_llm.data.LABELS`). The manifest
+token IDs) and `label` (the model's index in `name_that_llm.utils.data.LABELS`). The manifest
 records settings, labels, library versions, row counts, and file hashes. Repeat runs
 reuse the saved files if the inputs, settings, library versions, and output hashes match.
 Otherwise, preprocessing rebuilds the generated files of that fold. Raw text and
@@ -206,7 +213,7 @@ The encoders support both the tutorial's text interface and saved token IDs:
 import pandas as pd
 
 from name_that_llm.encodings import BagOfWords, TokenIndicator
-from name_that_llm.tokenizer import Tokenizer
+from name_that_llm.utils.tokenizer import Tokenizer
 
 tokenizer = Tokenizer.from_file("artifacts/tokenizers/bpe-vs-8000-mf-2/fold-0/tokenizer.json")
 train = pd.read_parquet("data/tokenized/bpe-vs-8000-mf-2/fold-0/train.parquet")

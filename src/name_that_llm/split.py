@@ -4,8 +4,8 @@ import argparse
 from pathlib import Path
 
 from name_that_llm.config import DATA_DIR, DEFAULT_SPLIT
-from name_that_llm.data import fold_summary, write_data_splits
 from name_that_llm.download import DEFAULT_DATA_DIR
+from name_that_llm.utils.data import fold_summary, write_data_splits
 
 
 def main() -> None:

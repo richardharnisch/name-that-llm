@@ -15,8 +15,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from name_that_llm.config import DATA_DIR
-from name_that_llm.data import fold_summary, write_data_splits
 from name_that_llm.embeddings import PRETRAINED_MODELS, download_pretrained
+from name_that_llm.utils.data import fold_summary, write_data_splits
 
 DATASET = "prvsiyan/prvsiyans-extended-name-that-llm-dataset"
 DATASET_URL = f"https://www.kaggle.com/datasets/{DATASET}"

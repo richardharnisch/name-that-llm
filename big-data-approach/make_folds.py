@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 
 from name_that_llm.config import DEFAULT_SPLIT, SplitConfig, save_config
-from name_that_llm.data import assign_folds, fold_summary
+from name_that_llm.utils.data import assign_folds, fold_summary
 
 RAW = Path("big-data-approach/data/raw/open-pool/ntl_open_pool.parquet")
 OUT = Path("big-data-approach/data")

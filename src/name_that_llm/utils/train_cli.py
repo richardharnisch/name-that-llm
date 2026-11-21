@@ -10,7 +10,6 @@ import pandas as pd
 import torch
 from sklearn.metrics import accuracy_score, classification_report, f1_score, log_loss
 
-from name_that_llm.checkpoints import save_checkpoint
 from name_that_llm.classifiers import MODELS, build_model
 from name_that_llm.config import (
     DATA_DIR,
@@ -24,12 +23,13 @@ from name_that_llm.config import (
     TrainingConfig,
     save_config,
 )
-from name_that_llm.data import LABELS, load_folds
 from name_that_llm.encodings import ENCODERS, build_encoder, encode_sparse
 from name_that_llm.preprocess import preprocess_data
-from name_that_llm.tokenizer import Tokenizer
 from name_that_llm.train import fit, predict_logits
-from name_that_llm.training_report import SCORES, save_learning_curves, save_plots, summarise
+from name_that_llm.utils.checkpoints import save_checkpoint
+from name_that_llm.utils.data import LABELS, load_folds
+from name_that_llm.utils.tokenizer import Tokenizer
+from name_that_llm.utils.training_report import SCORES, save_learning_curves, save_plots, summarise
 
 
 def run_fold(

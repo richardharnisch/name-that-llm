@@ -18,8 +18,8 @@ from name_that_llm.config import (
     TokenizerConfig,
     save_config,
 )
-from name_that_llm.data import LABELS, load_folds, split_fold, validate_columns
-from name_that_llm.tokenizer import UNK_TOKEN, Tokenizer, train_tokenizer
+from name_that_llm.utils.data import LABELS, load_folds, split_fold, validate_columns
+from name_that_llm.utils.tokenizer import UNK_TOKEN, Tokenizer, train_tokenizer
 
 COLUMNS = ("id", "prompt_id", "text", "model", "split")
 
