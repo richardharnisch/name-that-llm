@@ -229,18 +229,22 @@ Neither L2 regularization (3a) nor a smaller MLP (3b) closes the gap: either the
 
 ## Part 2 embedding comparison
 
-The comparison used 3,846 English passages from 225 prompts. Outer fold 0 was held out of
-the comparison. Each Gensim download had 300 dimensions. Both runs used the same lowercase
-NLTK word tokenizer, frozen vectors, normalized mean pooling, and log-linear classifier.
-The three inner development folds kept prompts together. Both models used seed 42 and
-60 training epochs per fold. Run `uv run python scripts/compare_embeddings.py` to reproduce.
-The full report is in `artifacts/embeddings/comparison.json`.
+The comparison used all 4,818 passages from 282 prompts and the same five folds in
+`data/folds.csv` as the BPE baseline. The split keeps all responses to each prompt in the
+same fold and balances the 18 model labels. Each run trains on four folds and validates
+on the fifth, so each passage is held out once.
+
+Both 300-dimensional Gensim downloads used the same lowercase NLTK word tokenizer,
+frozen vectors, normalized mean pooling, and log-linear classifier. The runs used the
+same training defaults as Part 1, including seed 42 and the training-loss stopping rule.
+Run `uv run python scripts/compare_embeddings.py` to reproduce. The full report is in
+`artifacts/embeddings/comparison.json`.
 
 | Tokenization | GloVe token coverage | GloVe distinct-token coverage | fastText token coverage | fastText distinct-token coverage |
 |---|---:|---:|---:|---:|
-| Whitespace | 78.42% | 39.13% | 86.64% | 50.72% |
-| Lowercase + whitespace | 83.70% | 42.86% | 86.43% | 48.76% |
-| Lowercase + NLTK | 96.44% | 74.88% | 98.05% | 83.81% |
+| Whitespace | 78.36% | 37.78% | 86.62% | 49.41% |
+| Lowercase + whitespace | 83.67% | 41.60% | 86.42% | 47.36% |
+| Lowercase + NLTK | 96.45% | 73.91% | 98.08% | 82.87% |
 
 NLTK recovered many words that whitespace splitting left attached to punctuation. The
 configuration keeps punctuation and stopwords as possible style cues. Common misses include
@@ -254,16 +258,18 @@ Both models placed `however` near `although` and `though`, and `therefore` near 
 the em dash near the en dash and hyphen. Some neighbors were weaker style matches, such as
 GloVe's `overall` near `improved` and fastText's `however` near `therefore`.
 
-| Embedding | Mean accuracy | Mean macro F1 |
+| Embedding | Mean accuracy (± fold SD) | Mean macro F1 (± fold SD) |
 |---|---:|---:|
-| `glove-wiki-gigaword-300` | 17.60% | 12.76% |
-| `fasttext-wiki-news-subwords-300` | 17.24% | 12.58% |
+| `glove-wiki-gigaword-300` | 19.02% ± 1.48 pp | 15.00% ± 1.00 pp |
+| `fasttext-wiki-news-subwords-300` | 19.54% ± 1.58 pp | 15.16% ± 1.02 pp |
 
-GloVe led by 0.36 percentage points in mean accuracy. The paired differences were +0.31,
-+1.25, and −0.47 points. Higher coverage for fastText did not translate into higher mean
-accuracy in this run. The small gap and change in direction across three development folds
-give weak evidence of a performance difference. These releases also differ in pretraining
-corpus and vocabulary, so the comparison measures the released embeddings as a whole.
+fastText led by 0.52 percentage points in mean accuracy. The paired fold differences were
++0.72, +1.03, +0.52, +0.42, and −0.10 points. With the same one-point ROPE as Part 1, the
+Bayesian correlated t-test gives a 91.7% posterior probability that the accuracy difference
+falls within that interval. Both runs use one training seed. The Part 1 log-linear BPE
+token-indicator baseline scored 30.4% mean accuracy on these folds. The embedding releases
+also differ in pretraining corpus and vocabulary, so the comparison measures the released
+embeddings as a whole.
 
 ## Sources
 

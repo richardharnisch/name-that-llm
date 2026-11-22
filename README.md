@@ -125,8 +125,9 @@ uv run ntl-train --encoder glove --pooling lstm --fold 0 --max-epochs 2 --limit-
 
 To compare the two embedding downloads, run `uv run python scripts/compare_embeddings.py`.
 It measures vocabulary coverage, records cosine nearest neighbors, and compares frozen mean
-pooling on three development folds grouped by prompt. The default excludes outer fold 0
-and saves results to `artifacts/embeddings/comparison.json`.
+pooling on the same folds and with the same training defaults as the BPE classifiers. It
+uses the existing assignments in `data/folds.csv` and saves the combined report to
+`artifacts/embeddings/comparison.json`.
 
 **Feature scale.** By default, each document vector is scaled to unit L2 norm
 (`--normalize`; use `--no-normalize` to turn it off). The three encoders produce vectors
