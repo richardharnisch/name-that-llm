@@ -216,7 +216,8 @@ uv run ntl-error-analysis --control-label \
 ```
 
 `--control-label` adds indicators of the true author model, so the feature weights compare
-passages of the same model. See "Part 2 error analysis" in `findings.md` for the method,
+passages of the same model. `--features` selects a subset of the features. The analysis in
+`findings.md` uses `--features log_words sentence_length em_dash_rate semicolon_colon_rate`. See "Part 2 error analysis" in `findings.md` for the method,
 the full commands, and the results.
 
 ## BPE preprocessing
