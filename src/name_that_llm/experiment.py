@@ -9,6 +9,8 @@ import torch
 from name_that_llm.classifiers import build_model
 from name_that_llm.config import MLPConfig, TokenizerConfig, TrainingConfig
 from name_that_llm.embeddings import (
+    PRETRAINED_MODELS,
+    WORD_TOKENIZER_NAME,
     WordEmbeddingEncoder,
     build_embedding_encoder,
     encode_embedding,
@@ -72,7 +74,10 @@ def run_fold(
             frame.assign(label=frame["model"].map(label_ids))
             for frame in (frames["train"], frames["val"])
         )
-        feature_metadata = {"tokenizer": "whitespace"}
+        feature_metadata = {
+            "tokenizer": WORD_TOKENIZER_NAME,
+            "pretrained_model": PRETRAINED_MODELS[config.encoder],
+        }
     if config.limit_per_class is not None:
         train, val = (
             frame.groupby("model", group_keys=False).sample(

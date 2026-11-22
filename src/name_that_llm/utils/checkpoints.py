@@ -13,6 +13,7 @@ from name_that_llm.config import (
     TokenizerConfig,
     TrainingConfig,
 )
+from name_that_llm.embeddings import PRETRAINED_MODELS, WORD_TOKENIZER_NAME
 from name_that_llm.encodings import TFIDF, L2Normalized
 from name_that_llm.utils.data import LABELS
 from name_that_llm.utils.encoder import Encoder
@@ -30,7 +31,11 @@ def save_checkpoint(
     """Save everything needed to rebuild the model and its input features."""
     base = encoder.encoder if isinstance(encoder, L2Normalized) else encoder
     if tokenizer_path is None:
-        tokenizer_metadata = {"tokenizer": "whitespace", "pooling": config.pooling or "mean"}
+        tokenizer_metadata = {
+            "tokenizer": WORD_TOKENIZER_NAME,
+            "pretrained_model": PRETRAINED_MODELS[config.encoder],
+            "pooling": config.pooling or "mean",
+        }
         if config.pooling == "lstm":
             tokenizer_metadata["lstm_hidden_size"] = config.lstm_hidden_size
     else:

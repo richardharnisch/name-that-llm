@@ -227,6 +227,44 @@ Neither L2 regularization (3a) nor a smaller MLP (3b) closes the gap: either the
 - MLP dropout, L1 regularization, a smaller vocabulary and other regularizers. Regularization and hidden-size sweeps on the big data. A looser stopping rule for the big-data linear models, which are underfit.
 - The notebook also asks for a record of AI assistance, the sources used, and backup slides for the oral. These are not part of this file.
 
+## Part 2 embedding comparison
+
+The comparison used 3,846 English passages from 225 prompts. Outer fold 0 was held out of
+the comparison. Each Gensim download had 300 dimensions. Both runs used the same lowercase
+NLTK word tokenizer, frozen vectors, normalized mean pooling, and log-linear classifier.
+The three inner development folds kept prompts together. Both models used seed 42 and
+60 training epochs per fold. Run `uv run python scripts/compare_embeddings.py` to reproduce.
+The full report is in `artifacts/embeddings/comparison.json`.
+
+| Tokenization | GloVe token coverage | GloVe distinct-token coverage | fastText token coverage | fastText distinct-token coverage |
+|---|---:|---:|---:|---:|
+| Whitespace | 78.42% | 39.13% | 86.64% | 50.72% |
+| Lowercase + whitespace | 83.70% | 42.86% | 86.43% | 48.76% |
+| Lowercase + NLTK | 96.44% | 74.88% | 98.05% | 83.81% |
+
+NLTK recovered many words that whitespace splitting left attached to punctuation. The
+configuration keeps punctuation and stopwords as possible style cues. Common misses include
+`it.` and `them.` for GloVe because NLTK still leaves some internal sentence periods attached.
+For fastText, the most frequent misses are NLTK's quote markers and the contraction token
+`n't`. The Gensim fastText download contains a fixed word table, so its missing tokens use
+zero vectors as well.
+
+Both models placed `however` near `although` and `though`, and `therefore` near `thus` and
+`consequently`. GloVe placed the semicolon near a colon, comma, and period. fastText placed
+the em dash near the en dash and hyphen. Some neighbors were weaker style matches, such as
+GloVe's `overall` near `improved` and fastText's `however` near `therefore`.
+
+| Embedding | Mean accuracy | Mean macro F1 |
+|---|---:|---:|
+| `glove-wiki-gigaword-300` | 17.60% | 12.76% |
+| `fasttext-wiki-news-subwords-300` | 17.24% | 12.58% |
+
+GloVe led by 0.36 percentage points in mean accuracy. The paired differences were +0.31,
++1.25, and −0.47 points. Higher coverage for fastText did not translate into higher mean
+accuracy in this run. The small gap and change in direction across three development folds
+give weak evidence of a performance difference. These releases also differ in pretraining
+corpus and vocabulary, so the comparison measures the released embeddings as a whole.
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.

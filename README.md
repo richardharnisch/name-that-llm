@@ -111,15 +111,22 @@ the features from the saved `input_ids` without tokenizing again, trains a new m
 training set of the fold, and evaluates it on the validation set of the fold. The tokenizer
 and the TF-IDF weights are fitted on the training set of the fold only.
 
-For GloVe or fastText, the command splits each passage on whitespace. Unknown words
-contribute zero vectors. Mean pooling averages the word vectors. LSTM pooling uses the
-final hidden state of a single-layer LSTM with 64 hidden units, trained with the classifier.
+For GloVe or fastText, the command lowercases each passage and uses NLTK word tokenization
+with punctuation and stopwords retained. It uses Gensim's `glove-wiki-gigaword-300` and
+`fasttext-wiki-news-subwords-300`. Unknown tokens contribute zero vectors. Mean pooling
+averages the word vectors. LSTM pooling uses the final hidden state of a one-layer LSTM
+with 64 hidden units, trained with the classifier.
 Normalization applies to the resulting document vector in both cases. To try the LSTM
 on one fold quickly:
 
 ```sh
 uv run ntl-train --encoder glove --pooling lstm --fold 0 --max-epochs 2 --limit-per-class 20 --output artifacts/quick-glove-lstm
 ```
+
+To compare the two embedding downloads, run `uv run python scripts/compare_embeddings.py`.
+It measures vocabulary coverage, records cosine nearest neighbors, and compares frozen mean
+pooling on three development folds grouped by prompt. The default excludes outer fold 0
+and saves results to `artifacts/embeddings/comparison.json`.
 
 **Feature scale.** By default, each document vector is scaled to unit L2 norm
 (`--normalize`; use `--no-normalize` to turn it off). The three encoders produce vectors

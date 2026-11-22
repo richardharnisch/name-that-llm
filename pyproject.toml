@@ -8,6 +8,7 @@ dependencies = [
     "gensim>=4.4,<5",
     "joblib>=1.4,<2",
     "matplotlib>=3.10,<4",
+    "nltk>=3.9,<4",
     "numpy>=2.0,<3",
     "pandas>=2.2,<3",
     "pyarrow>=18,<24",

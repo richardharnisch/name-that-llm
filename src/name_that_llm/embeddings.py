@@ -6,8 +6,16 @@ from pathlib import Path
 import numpy as np
 from gensim import downloader
 from gensim.models import KeyedVectors
+from nltk.tokenize import word_tokenize
 
 from .utils.encoder import Encoder
+
+WORD_TOKENIZER_NAME = "nltk-word-lowercase"
+
+
+def tokenize_embedding_words(text: str) -> list[str]:
+    """Tokenize a passage without dropping stopwords or punctuation."""
+    return word_tokenize(text.lower(), preserve_line=True)
 
 
 class WordEmbeddingEncoder(Encoder):
@@ -20,7 +28,7 @@ class WordEmbeddingEncoder(Encoder):
     def __init__(
         self,
         vectors: KeyedVectors,
-        tokenize_words: Callable[[str], Sequence[str]] = str.split,
+        tokenize_words: Callable[[str], Sequence[str]] = tokenize_embedding_words,
     ):
         self.vectors = vectors
         self.tokenize_words = tokenize_words
@@ -43,7 +51,7 @@ class WordEmbeddingEncoder(Encoder):
 
 
 PRETRAINED_MODELS = {
-    "glove": "glove-wiki-gigaword-50",
+    "glove": "glove-wiki-gigaword-300",
     "fasttext": "fasttext-wiki-news-subwords-300",
 }
 EMBEDDING_POOLING = ("mean", "lstm")
@@ -55,11 +63,14 @@ def download_pretrained(option: str) -> Path:
         model_name = PRETRAINED_MODELS[option]
     except KeyError as error:
         raise ValueError(f"Unknown embedding option: {option}") from error
+    cached = Path(downloader.BASE_DIR) / model_name / f"{model_name}.gz"
+    if cached.is_file():
+        return cached
     return Path(downloader.load(model_name, return_path=True))
 
 
 def build_embedding_encoder(
-    option: str, tokenize_words: Callable[[str], Sequence[str]] = str.split
+    option: str, tokenize_words: Callable[[str], Sequence[str]] = tokenize_embedding_words
 ) -> WordEmbeddingEncoder:
     """Load the selected pretrained vectors and reuse them across documents."""
     path = download_pretrained(option)
