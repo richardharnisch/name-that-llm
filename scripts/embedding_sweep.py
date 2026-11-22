@@ -10,6 +10,7 @@ from tempfile import TemporaryDirectory
 from time import perf_counter
 
 import numpy as np
+import pandas as pd
 import torch
 from gensim import downloader
 from sklearn.metrics import accuracy_score, f1_score
@@ -54,7 +55,7 @@ def read_vectors(name: str, word_ids: dict[bytes, int]) -> np.ndarray:
     return table
 
 
-def prepare(data_dir: Path, output: Path) -> Path:
+def prepare(data_dir: Path, output: Path, vectors: list[str]) -> Path:
     passages = load_folds(data_dir).sort_values("id").reset_index(drop=True)
     documents = [tokenize_embedding_words(text) for text in passages["text"]]
     vocabulary = sorted({token for document in documents for token in document})
@@ -65,7 +66,8 @@ def prepare(data_dir: Path, output: Path) -> Path:
     for row, document in enumerate(documents):
         token_ids[row, : lengths[row]] = [indices[token] for token in document] or [1]
     tables = {}
-    for key, name in MODELS.items():
+    for key in vectors:
+        name = MODELS[key]
         print(f"Preparing {name}", flush=True)
         tables[key] = read_vectors(name, word_ids)
     output.mkdir(parents=True, exist_ok=True)
@@ -299,14 +301,41 @@ def score_fold(encoder, config, table, tokens, lengths, labels, train, val, args
         converged = stopper.should_stop(history[-1]["train_loss"])
         if converged:
             break
-    return history, converged
+    # Validation batches are grouped by length, so return the row order with the scores.
+    val_order = np.concatenate([rows for rows, _ in batches(val, lengths, args.batch_size)])
+    log_probs = F.log_softmax(logits, dim=1).cpu().numpy()
+    return history, converged, (val_order, log_probs)
+
+
+def save_predictions(path: Path, passages: pd.DataFrame, parts: list[tuple]) -> None:
+    """Write one final-epoch prediction for each validation passage of each fold."""
+    rows = []
+    for fold, (val, log_probs) in parts:
+        rows.append(
+            pd.DataFrame(
+                {
+                    "id": passages.loc[val, "id"].to_numpy(),
+                    "fold": fold,
+                    "label": passages.loc[val, "model"].to_numpy(),
+                    "predicted": [LABELS[i] for i in log_probs.argmax(axis=1)],
+                    "confidence": np.exp(log_probs.max(axis=1)),
+                    "log_probs": list(log_probs.astype(np.float32)),
+                }
+            )
+        )
+    pd.concat(rows, ignore_index=True).to_parquet(path, index=False)
 
 
 def run(args, candidates: list[Run], group: str | None):
     start = perf_counter()
     cache = args.output / INPUT_CACHE
-    if args.prepare_only or not cache.is_file():
-        prepare(args.data_dir, args.output)
+    needed = args.vectors or list(MODELS)
+    missing = set()
+    if cache.is_file():
+        with np.load(cache) as stored:
+            missing = set(needed) - set(stored.files)
+    if args.prepare_only or not cache.is_file() or missing:
+        prepare(args.data_dir, args.output, needed)
     if args.prepare_only:
         return
     passages = load_folds(args.data_dir).sort_values("id").reset_index(drop=True)
@@ -314,7 +343,7 @@ def run(args, candidates: list[Run], group: str | None):
         if not np.array_equal(stored["ids"], passages["id"].to_numpy(dtype=str)):
             raise ValueError("Cached passage IDs differ from folds.csv. Run with --prepare-only.")
         tokens, lengths = stored["tokens"], stored["lengths"]
-        tables = {name: stored[name] for name in MODELS}
+        tables = {name: stored[name] for name in MODELS if name in stored.files}
     labels = passages["model"].map({name: index for index, name in enumerate(LABELS)}).to_numpy()
     folds = sorted(passages["fold"].unique().tolist())
     row_ids = {row: index for index, row in enumerate(passages["id"])}
@@ -338,6 +367,8 @@ def run(args, candidates: list[Run], group: str | None):
     for config in candidates:
         if args.setting and config.name not in args.setting:
             continue
+        if config.vectors not in tables:
+            raise ValueError(f"{config.name} needs {config.vectors}. Add it with --vectors.")
         result = {
             "encoder": args.encoder,
             "settings": asdict(config),
@@ -357,9 +388,10 @@ def run(args, candidates: list[Run], group: str | None):
             "device": str(args.device),
             "folds": [],
         }
+        predictions = []
         for fold in folds:
             train, val = splits[fold][config.fraction]
-            history, converged = score_fold(
+            history, converged, scored = score_fold(
                 args.encoder,
                 config,
                 tables[config.vectors],
@@ -380,6 +412,7 @@ def run(args, candidates: list[Run], group: str | None):
                     "history": history,
                 }
             )
+            predictions.append((fold, scored))
             final = history[-1]
             print(
                 f"{args.encoder} {config.name} fold {fold}: "
@@ -389,6 +422,8 @@ def run(args, candidates: list[Run], group: str | None):
                 flush=True,
             )
             (output / f"{config.name}.json").write_text(json.dumps(result, indent=2) + "\n")
+        if args.save_predictions:
+            save_predictions(output / f"{config.name}-predictions.parquet", passages, predictions)
 
 
 def main():
@@ -416,6 +451,17 @@ def main():
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--setting", action="append")
+    parser.add_argument(
+        "--vectors",
+        action="append",
+        choices=list(MODELS),
+        help="Prepare only these vector tables (default: all). Avoids unneeded downloads.",
+    )
+    parser.add_argument(
+        "--save-predictions",
+        action="store_true",
+        help="Save the final-epoch prediction of each validation passage for error analysis.",
+    )
     args = parser.parse_args()
     if min(args.epochs, args.batch_size) < 1:
         parser.error("Epochs and batch size must be positive.")

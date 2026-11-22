@@ -196,6 +196,30 @@ to change the model settings and result directory. A saved `model.pt` records wh
 features were normalized and, for TF-IDF, the IDF weights, so a reloaded model builds the
 same features. Checkpoints saved before this option existed load as not normalized.
 
+## Error analysis
+
+`ntl-error-analysis` relates passage features (length, sentence length, lexical diversity,
+unseen words, reading ease, punctuation, and quote style) to the correctness of several
+systems. It fits the Bayesian logistic regression of the Part 2 tutorial with one weight
+vector per system. Each system is given as `NAME=PATH`, where `PATH` is one of these:
+
+- A predictions file from `scripts/embedding_sweep.py --save-predictions`. This writes the
+  final-epoch prediction of every validation passage. Use `--vectors glove300` to prepare
+  only the GloVe table and skip the fastText download.
+- A Part 1 run directory with `fold-K/model.pt`. The saved fold models predict their own
+  validation passages.
+
+```sh
+uv run ntl-error-analysis --control-label \
+  --system bpe-indicator=artifacts/rope/log-linear-token-indicator \
+  --system glove-lstm=artifacts/error-analysis/lstm-followup/glove300-mean-lr0.003/seed-42/word-dropout-predictions.parquet
+```
+
+`--control-label` adds indicators of the true author model, so the feature weights compare
+passages of the same model. `--features` selects a subset of the features. The analysis in
+`findings.md` uses `--features log_words sentence_length em_dash_rate semicolon_colon_rate`. See "Part 2 error analysis" in `findings.md` for the method,
+the full commands, and the results.
+
 ## BPE preprocessing
 
 `scripts/preprocess_data.py` reads `data/folds.csv`. For each fold, it fits a tokenizer on the
