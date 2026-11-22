@@ -620,6 +620,32 @@ uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 20
   --setting glove300-mean-lr0.003 --setting fasttext300-mean-lr0.003
 ```
 
+### Fine-tuning word embeddings for 200 epochs
+
+Each model starts with its pretrained 300d word vectors and updates those vectors during
+training. The fastText binary supplies the initial word vectors, including vectors formed
+from subwords. Fine-tuning updates each word's vector. The experiment uses the same LSTM,
+classifier, optimizer, folds, seeds, and fixed 200-epoch budget as the frozen comparison.
+
+| Embedding initialization | Frozen accuracy | Trainable accuracy | Frozen macro F1 | Trainable macro F1 |
+|---|---:|---:|---:|---:|
+| fastText 300d binary | 25.15% | 21.46% | 23.85% | 20.81% |
+| GloVe 300d | 23.44% | 20.72% | 22.71% | 20.14% |
+
+Fine-tuning reduced accuracy by 3.69 points for fastText and 2.72 for GloVe. Accuracy fell
+on four of five seed-averaged folds for fastText and all five for GloVe. Mean validation
+loss also rose for both. The fold histories are under
+`artifacts/embeddings/fasttext-binary/fixed-200/lstm-followup/`.
+
+Repeat this command for `--seed 17` and `--seed 73` and for
+`--lstm-reference fasttext300-mean-lr0.003`.
+
+```sh
+uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 200 \
+  --output artifacts/embeddings/fasttext-binary/fixed-200 --seed 42 \
+  --lstm-reference glove300-mean-lr0.003 --setting finetuned
+```
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.
