@@ -729,6 +729,15 @@ The features are standardized, so a weight is the change in the log-odds of a co
 prediction for one standard deviation of the feature. Each system has its own weights.
 All fits had 0 divergences and r_hat ≤ 1.007.
 
+**ROPE.** We use a region of practical equivalence of ±0.05 for weights and for differences
+of weights (`--rope 0.05`). At an accuracy p, a small weight w changes accuracy by
+approximately p(1 − p) · w. At p ≈ 0.28 this is 0.2 · w, so ±0.05 is approximately ±1 accuracy
+point per standard deviation of the feature. This is the same ROPE as the Part 1 accuracy
+comparison. For each weight we report the posterior mass below, inside and above the ROPE.
+We call an effect practical when more than 0.95 of the mass is on one side of the ROPE, and
+probable when more than 0.65 is on one side, in all three seeds. The ROPE translation is
+approximate, because the accuracy of each system and each passage is different.
+
 **The author model is a confounder.** The features are strongly related to the true label,
 and some labels are much easier than others (per-label accuracy of `bpe-indicator` is from
 6% for `claude-fable-5` and `kimi-k3` to 57% for `gemini-3.1-pro-preview`). Without a
@@ -742,10 +751,14 @@ model. The weights then compare passages of the same model.
 | `semicolon_colon_rate` | −0.12 / −0.05 / −0.09 | −0.02 / −0.01 / −0.02 |
 | `reading_ease` | −0.16 / −0.11 / −0.01 | −0.02 / −0.04 / +0.09 |
 
-Without the control, em dashes and semicolons seem to cause errors. With the control, these
-effects are approximately 0. Em dashes and semicolons are frequent in the Claude, GLM and
-Kimi families, which are the hardest families to identify. They do not make a passage harder
-by themselves.
+Without the control, em dashes and semicolons seem to cause errors: for seed 42 the
+posterior mass below the ROPE is 0.81–0.92 for em dashes and 0.50–0.98 for semicolons. With the
+control, the mass below the ROPE is 0.10 or less for em dashes and 0.05–0.25 for semicolons,
+in all fits. Em dashes and semicolons are frequent in the Claude, GLM and Kimi families,
+which are the hardest families to identify. The negative effects come mostly from the
+author model, not from the punctuation. The data do not
+show that the controlled effects are practically 0: the mass inside the ROPE is 0.73–0.80
+for semicolons and 0.18–0.78 for em dashes.
 
 ### Results with label control
 
@@ -772,40 +785,80 @@ Weights with 90% posterior intervals. The BPE row is the same Part 1 run for eve
 | | pool | +0.01 [−0.06, +0.07] | −0.04 [−0.10, +0.03] | −0.00 [−0.07, +0.06] |
 | | LSTM | +0.06 [−0.01, +0.12] | +0.09 [+0.02, +0.16] | +0.08 [+0.01, +0.15] |
 
-`em_dash_rate`, `semicolon_colon_rate` and `straight_apostrophe` are approximately 0 for all
-systems and seeds. The full tables are in `weights.csv` of each report.
+`em_dash_rate`, `semicolon_colon_rate` and `straight_apostrophe` have most of their mass
+inside or near the ROPE, with no consistent sign across systems and seeds. The full tables,
+with the ROPE masses, are in `weights.csv` of each report.
 
-Posterior probability that the first system has the larger weight, for the three seeds:
+Posterior mass of the weights with respect to the ROPE (below / inside / above):
 
-| Feature | Comparison | P (seeds 42 / 17 / 73) |
-|---|---|---|
-| `log_words` | BPE > pool | 0.93 / 0.96 / 0.95 |
-| `sentence_length` | BPE > LSTM | 0.01 / 0.06 / 0.01 |
-| `sentence_length` | BPE > pool | 0.05 / 0.11 / 0.04 |
-| `curly_quotes` | BPE > LSTM | 0.90 / 0.92 / 0.94 |
-| `reading_ease` | BPE > LSTM | 0.05 / 0.09 / 0.03 |
+| Feature | System | Seed 42 | Seed 17 | Seed 73 |
+|---|---|---|---|---|
+| `log_words` | all three | 0.00 / 0.00 / 1.00 | 0.00 / 0.00 / 1.00 | 0.00 / 0.00 / 1.00 |
+| `curly_quotes` | BPE | 0.00 / 0.00 / 1.00 | 0.00 / 0.00 / 1.00 | 0.00 / 0.00 / 1.00 |
+| | pool | 0.00 / 0.02 / 0.98 | 0.00 / 0.02 / 0.98 | 0.00 / 0.00 / 1.00 |
+| | LSTM | 0.00 / 0.02 / 0.98 | 0.00 / 0.05 / 0.95 | 0.00 / 0.06 / 0.94 |
+| `sentence_length` | BPE | 0.00 / 0.15 / 0.84 | 0.00 / 0.16 / 0.84 | 0.00 / 0.16 / 0.84 |
+| | pool, LSTM | 0.00 / 0.00 / 1.00 | 0.00 / 0.00 / 1.00 | 0.00 / 0.00 / 1.00 |
+| `reading_ease` | LSTM | 0.00 / 0.22 / 0.78 | 0.01 / 0.34 / 0.65 | 0.00 / 0.11 / 0.89 |
+| `unseen_word_rate` | BPE | 0.78 / 0.21 / 0.00 | 0.77 / 0.23 / 0.00 | 0.78 / 0.22 / 0.00 |
+| `semicolon_colon_rate` | BPE | 0.22 / 0.75 / 0.03 | 0.22 / 0.75 / 0.03 | 0.22 / 0.75 / 0.03 |
+
+Posterior mass of differences of weights (first system minus second) with respect to the
+ROPE (below / inside / above):
+
+| Feature | Difference | Seed 42 | Seed 17 | Seed 73 |
+|---|---|---|---|---|
+| `log_words` | BPE − pool | 0.01 / 0.29 / 0.70 | 0.00 / 0.19 / 0.81 | 0.01 / 0.22 / 0.77 |
+| `sentence_length` | BPE − pool | 0.81 / 0.19 / 0.01 | 0.68 / 0.30 / 0.02 | 0.85 / 0.15 / 0.01 |
+| `sentence_length` | BPE − LSTM | 0.92 / 0.08 / 0.00 | 0.78 / 0.21 / 0.01 | 0.95 / 0.05 / 0.00 |
+| `curly_quotes` | BPE − LSTM | 0.01 / 0.33 / 0.66 | 0.01 / 0.28 / 0.71 | 0.01 / 0.22 / 0.77 |
+| `curly_quotes` | BPE − pool | 0.02 / 0.37 / 0.61 | 0.02 / 0.35 / 0.63 | 0.18 / 0.61 / 0.21 |
+| `reading_ease` | BPE − LSTM | 0.81 / 0.18 / 0.01 | 0.73 / 0.25 / 0.02 | 0.89 / 0.11 / 0.00 |
+| `lexical_diversity` | BPE − LSTM | 0.57 / 0.41 / 0.02 | 0.78 / 0.22 / 0.00 | 0.74 / 0.26 / 0.01 |
+
+No difference between systems has more than 0.95 of its mass on one side of the ROPE in
+all three seeds. `weight_differences.csv` contains all feature and system pairs.
 
 ### Interpretation
 
-These results hold for all three seeds:
+These results hold for all three seeds. "Practical" and "probable" refer to the ROPE rule
+in the method.
 
-1. **Longer passages are easier for all systems.** The BPE model gains the most from
-   length (P > 0.93 against pooling). Each extra token can switch on one more indicator,
-   while a mean of word vectors changes little when more words are added.
-2. **Long sentences help the embedding systems approximately twice as much as BPE.** BPE
-   indicators record which tokens occur, but not how they are arranged. A possible cause is
-   that GloVe vectors carry more useful information in long, content-rich sentences. We did
-   not test this cause.
-3. **Curly quotes help all systems, even among passages of the same model, and BPE the most.**
-   BPE has a separate indicator for `’`, so the typography cue is always visible. In the
-   word pipeline, `’` is one vector among more than 100. Its effect is stronger for BPE
-   than for the LSTM in all seeds (P 0.90–0.94).
-4. **Only the LSTM does better on easier text** (higher Flesch reading ease, and a small
-   positive weight for lexical diversity). The other two systems show no clear effect.
-5. **Unseen words hurt BPE slightly** (−0.08 in every fit), although BPE can split unknown
-   words into known subwords. The effect for the word systems is small and changes sign
-   between seeds.
-6. **The systems make different errors.** All three are wrong on 47.4–48.3% of passages and
+Practical effects:
+
+1. **Longer passages are easier for all systems** (mass above the ROPE 1.00 everywhere).
+2. **Curly quotes help all systems, also among passages of the same model** (0.94–1.00
+   above the ROPE). Within a model family, passages with curly quotes are easier to
+   attribute.
+3. **Long sentences help both embedding systems** (1.00 above the ROPE). For BPE this effect
+   is only probable (0.84).
+
+Probable differences between designs:
+
+4. **Long sentences help the embedding systems more than BPE** (BPE − LSTM: 0.78–0.95 below
+   the ROPE; BPE − pool: 0.68–0.85). BPE indicators record which tokens occur, but not how
+   they are arranged. A possible cause is that GloVe vectors carry more useful information
+   in long, content-rich sentences. We did not test this cause.
+5. **Length helps BPE more than mean pooling** (0.70–0.81 above the ROPE). Each extra token
+   can switch on one more indicator, while a mean of word vectors changes little when more
+   words are added.
+6. **Only the LSTM does better on easier text.** Its reading-ease weight is 0.65–0.89 above
+   the ROPE, and the BPE − LSTM difference is 0.73–0.89 below it. The LSTM also has a small
+   positive weight for lexical diversity.
+7. **Unseen words probably hurt BPE** (0.77–0.78 below the ROPE), although BPE can split
+   unknown words into known subwords. For the word systems the effect changes between seeds.
+
+Not supported by the ROPE:
+
+8. **Curly quotes help BPE more than the embedding systems.** We expected this, because BPE
+   has a separate indicator for `’`, while mean pooling averages its vector with more than
+   100 others. The point estimates are higher for BPE, and P(BPE − LSTM > 0) is 0.90–0.94.
+   But only 0.66–0.77 of the BPE − LSTM mass is above the ROPE, and the BPE − pool result
+   changes between seeds. The difference is possibly smaller than 1 accuracy point.
+
+Also:
+
+9. **The systems make different errors.** All three are wrong on 47.4–48.3% of passages and
    all three are correct on only 7.7–8.2%. BPE alone is correct on 12.6–13.2%, and at least
    one system is correct on 51.7–52.6%, against 30.4% for the best single system. A
    combination of BPE and embedding systems is a good next experiment.
@@ -813,7 +866,8 @@ These results hold for all three seeds:
 ### Limits
 
 - Observations are not independent: the same passage occurs once per system, and the
-  passages of one prompt share content. The posterior intervals are therefore too narrow.
+  passages of one prompt share content. The posterior intervals are therefore too narrow,
+  and the ROPE masses are more decisive than they should be.
   A hierarchical model with prompt and passage effects would correct this.
 - The BPE system is one Part 1 run (seed 42). Its seed variance is not in this analysis.
 - Features are correlated (for example `curly_quotes` and `straight_apostrophe`: −0.36;
@@ -839,7 +893,8 @@ for seed in 42 17 73; do
 done
 ```
 
-Remove `--control-label` for the analysis without label control (`$E/report`). The BPE
+Remove `--control-label` for the analysis without label control (`$E/report`). The ROPE
+half-width is `--rope 0.05` by default. The BPE
 system uses the saved fold models of the Part 1 log-linear token-indicator run in
 `artifacts/rope/log-linear-token-indicator/`. Each report contains `weights.csv`,
 `weight_differences.csv`, `weights.png`, `binned_accuracy.csv` and `.png` (accuracy per

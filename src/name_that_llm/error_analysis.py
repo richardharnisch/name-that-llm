@@ -197,8 +197,23 @@ def fit_bda(
     return mcmc, systems
 
 
-def summarise_posterior(mcmc, systems, feature_names, table) -> tuple[pd.DataFrame, dict]:
-    """Posterior summaries of the feature weights, system accuracy and diagnostics."""
+def rope_probabilities(values: np.ndarray, rope: float) -> dict[str, float]:
+    """Posterior mass below, inside and above the region of practical equivalence."""
+    return {
+        "p_below_rope": float((values < -rope).mean()),
+        "p_in_rope": float((np.abs(values) <= rope).mean()),
+        "p_above_rope": float((values > rope).mean()),
+    }
+
+
+def summarise_posterior(
+    mcmc, systems, feature_names, table, rope: float
+) -> tuple[pd.DataFrame, dict]:
+    """Posterior summaries of the feature weights, system accuracy and diagnostics.
+
+    Each weight and each difference of weights gets the posterior mass below, inside and
+    above [-rope, rope].
+    """
     from numpyro.diagnostics import summary
 
     draws = mcmc.get_samples(group_by_chain=True)
@@ -218,6 +233,7 @@ def summarise_posterior(mcmc, systems, feature_names, table) -> tuple[pd.DataFra
                     "q05": low,
                     "q95": high,
                     "p_positive": (values > 0).mean(),
+                    **rope_probabilities(values, rope),
                     "r_hat": float(stats["w"]["r_hat"][s, f]),
                 }
             )
@@ -233,6 +249,7 @@ def summarise_posterior(mcmc, systems, feature_names, table) -> tuple[pd.DataFra
                         "q05": np.quantile(difference, 0.05),
                         "q95": np.quantile(difference, 0.95),
                         "p_positive": (difference > 0).mean(),
+                        **rope_probabilities(difference, rope),
                         "r_hat": np.nan,
                     }
                 )
@@ -256,7 +273,7 @@ def summarise_posterior(mcmc, systems, feature_names, table) -> tuple[pd.DataFra
     }
 
 
-def plot_weights(weights: pd.DataFrame, path: Path) -> None:
+def plot_weights(weights: pd.DataFrame, path: Path, rope: float | None = None) -> None:
     """Forest plot: one row per feature, one marker per system, 90% intervals."""
     features = list(dict.fromkeys(weights["feature"]))
     systems = list(dict.fromkeys(weights["system"]))
@@ -275,6 +292,8 @@ def plot_weights(weights: pd.DataFrame, path: Path) -> None:
             label=system,
         )
     ax.axvline(0, color="grey", linewidth=0.8)
+    if rope:
+        ax.axvspan(-rope, rope, color="grey", alpha=0.15, label=f"ROPE ±{rope:g}")
     ax.set_yticks(np.arange(len(features)), features)
     ax.invert_yaxis()
     ax.set_xlabel("weight on logit of P(correct), per standard deviation (90% interval)")
@@ -370,6 +389,15 @@ def main() -> None:
         "passages of the same model. Without this, a feature can look useful only "
         "because it marks a model that is easy to identify.",
     )
+    parser.add_argument(
+        "--rope",
+        type=float,
+        default=0.05,
+        help="Half-width of the region of practical equivalence for weights and weight "
+        "differences, in log-odds per standard deviation. At an accuracy p, a weight w "
+        "changes accuracy by about p(1 - p) w, so 0.05 is about 1 accuracy point at p = 0.28, "
+        "the same ROPE as the Part 1 comparison.",
+    )
     args = parser.parse_args()
 
     systems = dict(args.system)
@@ -401,14 +429,19 @@ def main() -> None:
         )
         covariates = standardized.join(indicators)
     mcmc, system_names = fit_bda(table, covariates, samples=args.samples, chains=args.chains)
-    weights, summary = summarise_posterior(mcmc, system_names, list(covariates.columns), table)
+    weights, summary = summarise_posterior(
+        mcmc, system_names, list(covariates.columns), table, args.rope
+    )
     pairs = weights["system"].isin(system_names)
     differences = weights[~pairs & weights["feature"].isin(raw.columns)].drop(columns="r_hat")
     weights = weights[pairs]
     weights.to_csv(args.output / "weights.csv", index=False)
     differences.to_csv(args.output / "weight_differences.csv", index=False)
-    plot_weights(weights[weights["feature"].isin(raw.columns)], args.output / "weights.png")
+    plot_weights(
+        weights[weights["feature"].isin(raw.columns)], args.output / "weights.png", args.rope
+    )
     summary["control_label"] = args.control_label
+    summary["rope"] = args.rope
     summary["features"] = FEATURES
     summary["systems"] = {name: str(path) for name, path in systems.items()}
     (args.output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
