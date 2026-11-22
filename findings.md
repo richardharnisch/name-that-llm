@@ -594,6 +594,32 @@ To repeat the runs, use the sweep commands above with `--early-stopping` and `--
 Keep `--setting fasttext300-mlp128-lr0.003-drop0` for the mean-pooling command. The fold
 histories and aggregate results are in `artifacts/embeddings/fasttext-binary/early-stopping/`.
 
+### GloVe and fastText LSTMs at 200 fixed epochs
+
+Both models use frozen 300d vectors, a one-layer 64-unit LSTM, and mean pooling over
+the LSTM states. A 128-unit MLP classifies the pooled representation. Adam uses learning
+rate `0.003`. Every fold runs for 200 epochs. We score epoch 200 on the same five
+prompt-grouped folds and average over seeds 42, 17, and 73.
+
+| Frozen embedding | Epochs | Mean accuracy | Mean macro F1 |
+|---|---:|---:|---:|
+| fastText 300d binary | 200 | **25.15%** | **23.85%** |
+| GloVe 300d | 200 | 23.44% | 22.71% |
+
+FastText led by 1.71 accuracy points and scored higher on four of five seed-averaged
+folds. The learning curves showed overfitting in both models. From epoch 25 to 200,
+mean validation loss rose from 2.14 to 4.81 for fastText and from 3.44 to 5.87 for GloVe,
+while the training loss fell for both. Fold histories are in
+`artifacts/embeddings/fasttext-binary/fixed-200/lstm-grid/`.
+
+Repeat the command with `--seed 17` and `--seed 73` for the other seeds.
+
+```sh
+uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 200 \
+  --output artifacts/embeddings/fasttext-binary/fixed-200 --lstm-grid --seed 42 \
+  --setting glove300-mean-lr0.003 --setting fasttext300-mean-lr0.003
+```
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.
