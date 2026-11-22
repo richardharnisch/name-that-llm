@@ -245,15 +245,16 @@ Run `uv run python scripts/compare_embeddings.py` to reproduce. The full report 
 |---|---:|---:|---:|---:|
 | Whitespace | 78.36% | 37.78% | 86.62% | 49.41% |
 | Lowercase + whitespace | 83.67% | 41.60% | 86.42% | 47.36% |
-| Lowercase + NLTK word tokenization | 96.45% | 73.91% | 98.08% | 82.87% |
+| NLTK word tokenization, then lowercase | 96.45% | 73.91% | 98.08% | 82.87% |
 | NLTK sentence and word tokenization, then lowercase | 99.53% | 92.58% | 99.23% | 94.25% |
 
-NLTK recovered many words that whitespace splitting left attached to punctuation. Enabling
-sentence splitting removed all 319 occurrences of `it.` as a single token. Lowercasing after
-tokenization lets NLTK use the original case to find sentence boundaries. The configuration
-keeps punctuation and stopwords as possible style cues. For fastText, NLTK's quote markers
-and the contraction token `n't` still miss the vocabulary. Both Gensim downloads use fixed
-word tables. Missing tokens contribute zero vectors.
+Both NLTK rows lowercase after tokenization. Lowercasing first in the word-only run
+produced identical lookup tokens on all 4,818 passages, so its original scores still apply.
+Enabling sentence splitting removed all 319 occurrences of `it.` as a single token. NLTK
+can use the original case to find sentence boundaries. The configuration keeps punctuation
+and stopwords as possible style cues. For fastText, NLTK's quote markers and the contraction
+token `n't` still miss the vocabulary. Both Gensim downloads use fixed word tables.
+Missing tokens contribute zero vectors.
 
 Both models placed `however` near `although` and `though`, and `therefore` near `thus` and
 `consequently`. GloVe placed the semicolon near a colon, comma, and period. fastText placed

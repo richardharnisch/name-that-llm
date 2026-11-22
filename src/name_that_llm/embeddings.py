@@ -13,9 +13,9 @@ from .utils.encoder import Encoder
 WORD_TOKENIZER_NAME = "nltk-sentence-word-lowercase"
 
 
-def tokenize_embedding_words(text: str) -> list[str]:
-    """Use original case for sentence splitting, then lowercase for lookup."""
-    return [token.lower() for token in word_tokenize(text, preserve_line=False)]
+def tokenize_embedding_words(text: str, *, preserve_line: bool = False) -> list[str]:
+    """Keep original case for tokenization, then lowercase for lookup."""
+    return [token.lower() for token in word_tokenize(text, preserve_line=preserve_line)]
 
 
 class WordEmbeddingEncoder(Encoder):

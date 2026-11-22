@@ -8,7 +8,6 @@ from pathlib import Path
 
 import torch
 from gensim.models import KeyedVectors
-from nltk.tokenize import word_tokenize
 
 from name_that_llm.config import (
     DATA_DIR,
@@ -51,7 +50,7 @@ def run(args: argparse.Namespace) -> dict:
         "whitespace": Counter(word for text in texts for word in text.split()),
         "whitespace-lowercase": Counter(word for text in texts for word in text.lower().split()),
         "nltk-word-lowercase": Counter(
-            word for text in texts for word in word_tokenize(text.lower(), preserve_line=True)
+            word for text in texts for word in tokenize_embedding_words(text, preserve_line=True)
         ),
         WORD_TOKENIZER_NAME: Counter(
             word for text in texts for word in tokenize_embedding_words(text)
