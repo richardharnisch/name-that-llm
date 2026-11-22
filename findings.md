@@ -646,6 +646,33 @@ uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 20
   --lstm-reference glove300-mean-lr0.003 --setting finetuned
 ```
 
+### Word dropout in the frozen fastText LSTM
+
+The experiment compares word dropout of 0% and 25% with frozen fastText 300d binary
+vectors. Both settings use a 64-unit LSTM, mean-state readout, a 128-unit MLP, and Adam
+at `0.003`. Both run for 200 fixed epochs on the same five prompt-grouped folds with
+seed 42. During training, word dropout independently zeroes entire input vectors with
+the given probability. Validation uses the full input.
+
+| Word dropout | Training loss, epoch 25 → 200 | Validation loss, epoch 25 → 200 | Epoch-200 accuracy | Epoch-200 macro F1 |
+|---|---:|---:|---:|---:|
+| 0% | 1.99 → 0.12 | 2.19 → 5.01 | 26.45% | 25.51% |
+| 25% | 2.04 → 1.29 | 2.13 → 2.30 | 27.56% | 25.67% |
+
+Word dropout lowered epoch-200 validation loss on all five folds and raised accuracy on
+three. The mean accuracy gain was 1.12 percentage points. Mean validation loss reached
+its lowest point at epoch 46 without word dropout and at epoch 76 with it. Loss still
+rose later in the dropout run. The learning curves show a smaller rise in validation loss
+as training loss falls. This experiment uses one seed. Fold histories, the summary, and
+the plot are in `artifacts/embeddings/fasttext-binary/word-dropout-25/`.
+
+```sh
+uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 200 \
+  --output artifacts/embeddings/fasttext-binary/word-dropout-25 --seed 42 \
+  --lstm-reference fasttext300-mean-lr0.003 --word-dropout-probability 0.25 \
+  --setting fasttext300-mean-lr0.003 --setting word-dropout
+```
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.

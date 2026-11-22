@@ -156,11 +156,11 @@ def lstm_grid() -> list[Run]:
     ]
 
 
-def lstm_followup(base: Run) -> list[Run]:
+def lstm_followup(base: Run, word_dropout: float) -> list[Run]:
     return [
         base,
         replace(base, name="dropout", dropout=0.25),
-        replace(base, name="word-dropout", word_dropout=0.15),
+        replace(base, name="word-dropout", word_dropout=word_dropout),
         replace(base, name="finetuned", mode="finetuned"),
         replace(base, name="random", mode="random"),
         replace(base, name="train25", fraction=0.25),
@@ -402,6 +402,11 @@ def main():
     grid.add_argument("--pooling-grid", action="store_true")
     grid.add_argument("--lstm-grid", action="store_true")
     grid.add_argument("--lstm-reference", choices=[config.name for config in lstm_grid()])
+    parser.add_argument(
+        "--word-dropout-probability",
+        type=float,
+        help="Set the input masking probability for the LSTM follow-up word-dropout setting.",
+    )
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument(
         "--early-stopping",
@@ -420,6 +425,11 @@ def main():
         parser.error("--pooling-grid uses the mean encoder.")
     if (args.lstm_grid or args.lstm_reference) and args.encoder != "lstm":
         parser.error("LSTM studies require --encoder lstm.")
+    if args.word_dropout_probability is not None:
+        if not 0 <= args.word_dropout_probability <= 1:
+            parser.error("Word dropout probability must be between 0 and 1.")
+        if not args.lstm_reference:
+            parser.error("Word dropout probability requires --lstm-reference.")
     group = None
     if args.pooling_grid:
         candidates, group = pooling_grid(), "pooling-mlp"
@@ -427,7 +437,10 @@ def main():
         candidates, group = lstm_grid(), "lstm-grid"
     elif args.lstm_reference:
         reference = next(config for config in lstm_grid() if config.name == args.lstm_reference)
-        candidates, group = lstm_followup(reference), f"lstm-followup/{reference.name}"
+        probability = args.word_dropout_probability
+        if probability is None:
+            probability = 0.15
+        candidates, group = lstm_followup(reference, probability), f"lstm-followup/{reference.name}"
     else:
         candidates = settings(args.encoder)
     choices = {item.name for item in candidates}
