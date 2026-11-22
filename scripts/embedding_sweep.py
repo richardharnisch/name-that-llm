@@ -78,6 +78,8 @@ class Run:
     learning_rate: float = 0.001
     mode: str = "frozen"
     fraction: float = 1.0
+    readout: str = "last"
+    word_dropout: float = 0.0
 
 
 def settings(encoder: str) -> list[Run]:
@@ -122,6 +124,34 @@ def pooling_grid() -> list[Run]:
     return baselines + models
 
 
+def lstm_grid() -> list[Run]:
+    return [
+        Run(
+            f"{vectors}-{readout}-lr{rate:g}",
+            vectors=vectors,
+            head_hidden=(128,),
+            learning_rate=rate,
+            readout=readout,
+        )
+        for vectors, readout, rate in product(
+            ("glove300", "fasttext300"), ("last", "mean", "hybrid"), (0.001, 0.003)
+        )
+        if readout != "hybrid" or rate == 0.003
+    ]
+
+
+def lstm_followup(base: Run) -> list[Run]:
+    return [
+        base,
+        replace(base, name="dropout", dropout=0.25),
+        replace(base, name="word-dropout", word_dropout=0.15),
+        replace(base, name="finetuned", mode="finetuned"),
+        replace(base, name="random", mode="random"),
+        replace(base, name="train25", fraction=0.25),
+        replace(base, name="train50", fraction=0.5),
+    ]
+
+
 class SequenceClassifier(nn.Module):
     def __init__(self, encoder: str, config: Run, matrix: torch.Tensor):
         super().__init__()
@@ -130,7 +160,11 @@ class SequenceClassifier(nn.Module):
             matrix, freeze=config.mode == "frozen", padding_idx=0
         )
         self.lstm = nn.LSTM(width, config.hidden, batch_first=True) if encoder == "lstm" else None
+        self.readout = config.readout
+        self.word_dropout = config.word_dropout
         head_input = config.hidden if self.lstm is not None else width
+        if self.lstm is not None and self.readout == "hybrid":
+            head_input += width
         layers = []
         for units in config.head_hidden:
             layers.extend((nn.Linear(head_input, units), nn.ReLU(), nn.Dropout(config.dropout)))
@@ -140,12 +174,25 @@ class SequenceClassifier(nn.Module):
 
     def encode(self, ids: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
         vectors = self.embedding(ids)
+        if self.training and self.word_dropout:
+            keep = torch.rand(ids.shape, device=ids.device) >= self.word_dropout
+            vectors = vectors * keep.unsqueeze(2)
         if self.lstm is None:
             features = vectors.sum(dim=1) / lengths.unsqueeze(1)
         else:
             sequence, _ = self.lstm(vectors)
-            ends = (lengths - 1).view(-1, 1, 1).expand(-1, 1, sequence.shape[-1])
-            features = sequence.gather(1, ends).squeeze(1)
+            if self.readout == "last":
+                ends = (lengths - 1).view(-1, 1, 1).expand(-1, 1, sequence.shape[-1])
+                features = sequence.gather(1, ends).squeeze(1)
+            else:
+                positions = torch.arange(sequence.shape[1], device=ids.device)
+                mask = positions.unsqueeze(0) < lengths.unsqueeze(1)
+                features = (sequence * mask.unsqueeze(2)).sum(dim=1) / lengths.unsqueeze(1)
+                if self.readout == "hybrid":
+                    features = torch.cat(
+                        (F.normalize(features, dim=1), F.normalize(vectors.sum(dim=1), dim=1)),
+                        dim=1,
+                    )
         return F.normalize(features, dim=1)
 
     def forward(self, ids: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
@@ -232,7 +279,7 @@ def score_fold(encoder, config, table, tokens, lengths, labels, train, val, args
     return history
 
 
-def run(args):
+def run(args, candidates: list[Run], group: str | None):
     start = perf_counter()
     cache = args.output / "native-inputs.npz"
     if args.prepare_only or not cache.is_file():
@@ -262,13 +309,8 @@ def run(args):
                 for fraction, groups in ((0.25, 1), (0.5, 2))
             },
         }
-    output = (
-        args.output / "pooling-mlp" / f"seed-{args.seed}"
-        if args.pooling_grid
-        else args.output / args.encoder
-    )
+    output = args.output / group / f"seed-{args.seed}" if group else args.output / args.encoder
     output.mkdir(parents=True, exist_ok=True)
-    candidates = pooling_grid() if args.pooling_grid else settings(args.encoder)
     for config in candidates:
         if args.setting and config.name not in args.setting:
             continue
@@ -320,7 +362,10 @@ def main():
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--encoder", choices=("mean", "lstm"), default="mean")
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
-    parser.add_argument("--pooling-grid", action="store_true")
+    grid = parser.add_mutually_exclusive_group()
+    grid.add_argument("--pooling-grid", action="store_true")
+    grid.add_argument("--lstm-grid", action="store_true")
+    grid.add_argument("--lstm-reference", choices=[config.name for config in lstm_grid()])
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
@@ -332,12 +377,23 @@ def main():
         parser.error("MPS is unavailable. Use --device cpu.")
     if args.pooling_grid and args.encoder != "mean":
         parser.error("--pooling-grid uses the mean encoder.")
-    candidates = pooling_grid() if args.pooling_grid else settings(args.encoder)
+    if (args.lstm_grid or args.lstm_reference) and args.encoder != "lstm":
+        parser.error("LSTM studies require --encoder lstm.")
+    group = None
+    if args.pooling_grid:
+        candidates, group = pooling_grid(), "pooling-mlp"
+    elif args.lstm_grid:
+        candidates, group = lstm_grid(), "lstm-grid"
+    elif args.lstm_reference:
+        reference = next(config for config in lstm_grid() if config.name == args.lstm_reference)
+        candidates, group = lstm_followup(reference), f"lstm-followup/{reference.name}"
+    else:
+        candidates = settings(args.encoder)
     choices = {item.name for item in candidates}
     if args.setting and set(args.setting) - choices:
         parser.error(f"Choose settings from {', '.join(sorted(choices))}.")
     torch.set_num_threads(2)
-    run(args)
+    run(args, candidates, group)
 
 
 if __name__ == "__main__":

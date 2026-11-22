@@ -415,6 +415,109 @@ uv run python scripts/embedding_sweep.py --pooling-grid --epochs 200 --seed 42 \
 Fold scores and learning histories are in `artifacts/embeddings/sweep/`. The follow-up
 summary is in `artifacts/embeddings/sweep/pooling-refine/pooling-mlp/summary.json`.
 
+## Part 2 tuned LSTM on 300d embeddings
+
+The recurrent grid uses frozen GloVe 300d and fastText 300d with the same five folds,
+training-fold vocabulary, and sentence splitting → NLTK word tokenization → lowercase as
+the tuned mean-pooling comparison. Each model has a one-layer 64-unit LSTM and a 128-unit
+MLP classifier. The passage representation uses one of three readouts:
+
+- **Last state:** take the last non-padding LSTM output.
+- **Mean states:** average the LSTM outputs over non-padding positions.
+- **Hybrid:** concatenate the mean LSTM states with the mean word vectors. Normalize each
+  before concatenation so both parts contribute to the classifier input.
+
+The initial grid uses seed 42 and 20 Adam epochs, with batch size 128 and weight decay `1e-4`.
+It tests learning rates `0.001` and `0.003` for last state and mean states. The hybrid uses
+`0.003`, so it can be compared against the other readouts at that rate. Candidate checkpoints
+are epochs 5, 10, 15, and 20. Each setting is compared at the same checkpoint across folds.
+
+| Readout | Adam learning rate | GloVe 300d accuracy | fastText 300d accuracy |
+|---|---:|---:|---:|
+| Last state | 0.001 | 15.33% | 11.53% |
+| Last state | 0.003 | 17.41% | 8.43% |
+| Mean states | 0.001 | 24.07% | 25.89% |
+| Mean states | 0.003 | **26.40%** | **26.19%** |
+| Hybrid | 0.003 | 24.12% | 25.37% |
+
+At epoch 20, averaging LSTM states beat the last-state readout on every fold for both
+embeddings and learning rates. Raising the learning rate from `0.001` to `0.003` helped the
+mean readout by 2.33 points for GloVe and 0.30 for fastText. The higher rate hurt fastText
+with the last-state readout. Adding the direct word-vector mean to the recurrent mean gave
+lower accuracy for both embeddings at the matched rate. Across the four checkpoint choices,
+the highest initial mean accuracy was 26.43% for GloVe mean states at epoch 15.
+
+At the same 20 epochs, seed 42, learning rate `0.003`, and 128-unit classifier, ordinary
+mean pooling scored 20.21% with GloVe and 21.39% with fastText. The mean-state LSTMs were
+ahead by 6.19 and 4.80 points at that checkpoint. Each LSTM epoch uses more computation,
+and the tuned mean-pooling comparison also ran through epoch 200.
+
+With GloVe mean states at `0.003`, mean training loss fell from 2.02 at epoch 5 to 0.93 at
+epoch 20. Mean validation loss rose from 2.15 to 2.83. Accuracy barely changed from epochs
+15 to 20. The [learning curves](artifacts/embeddings/sweep/lstm-grid/learning-curves.png)
+show this overfitting directly.
+
+The follow-up uses the leading GloVe setting with frozen, fine-tuned, or randomly initialized
+embeddings, and also tests 25% and 50% of the training prompts with full validation folds.
+Two regularization settings test 25% dropout in the classifier or 15% chance of masking each
+word vector during training. All follow-up settings run for 30 epochs. The leading frozen
+fastText setting also runs for 30 epochs.
+
+At epoch 25, 15% word dropout raised GloVe validation accuracy from 25.47% to 27.65%.
+It lowered validation loss from 3.45 to 2.43 at the same checkpoint. The 25% classifier
+dropout setting scored 25.85% and reduced validation loss to 3.05. With word dropout,
+validation loss still rose later in training, so it reduced the overfitting seen in the curves.
+The same word dropout hurt fastText: at epoch 25, accuracy was 17.83% versus 29.00% with
+dropout off. It was useful for GloVe in this experiment, with a different effect on fastText.
+
+| GloVe 300d mean-state LSTM setting | Epoch-25 accuracy |
+|---|---:|
+| Frozen vectors, full training fold | 25.47% |
+| Fine-tuned vectors, full training fold | 21.46% |
+| Randomly initialized and trained vectors, full training fold | 24.01% |
+| Frozen vectors, 50% of training prompts | 21.48% |
+| Frozen vectors, 25% of training prompts | 19.82% |
+
+At this checkpoint, frozen GloVe led both trainable variants. Fine-tuning also had higher
+validation loss (6.07 versus 3.45). With frozen vectors, increasing the number of training
+prompts raised mean accuracy. The 25% subset used 972 passages per fold, the 50% subset
+used 1,926–1,944, and the full training folds used 3,846–3,864. Validation stayed fixed.
+At the same epoch count, a smaller subset also gets fewer Adam updates.
+
+The top seed-42 result was 29.00% for frozen fastText 300d with mean LSTM states, Adam
+at `0.003`, and both dropout options off. Epoch 25 was the best common checkpoint among
+epochs 5, 10, 15, 20, 25, and 30. Repeating that configuration and checkpoint with seeds 17
+and 73 gave 26.27% and 27.23%. The table averages all three seeds on the same five folds.
+
+| Frozen fastText 300d and 128-unit MLP | Epochs | Mean accuracy | Mean macro F1 |
+|---|---:|---:|---:|
+| Mean word-vector pooling | 25 | 23.23% | 17.95% |
+| Mean LSTM states | 25 | 27.50% | 23.49% |
+| Best tuned mean word-vector pooling | 200 | 30.17% | 27.12% |
+
+At 25 epochs, the LSTM led by 4.27 points and won all five seed-averaged folds. This
+compares equal epoch counts, with more computation per epoch for the LSTM. Against the
+best tuned pooling run, the LSTM was 2.67 points lower and won one of five seed-averaged
+folds. Using the one-point ROPE, the posterior probability that the best pooling run led
+by more than one point was 86.9%. These are comparisons on the folds used for tuning.
+
+To reproduce the recurrent experiments on Apple GPU, use:
+
+```sh
+uv run python scripts/embedding_sweep.py --encoder lstm --device mps --lstm-grid --epochs 20
+uv run python scripts/embedding_sweep.py --encoder lstm --device mps \
+  --lstm-reference glove300-mean-lr0.003 --epochs 30
+uv run python scripts/embedding_sweep.py --encoder lstm --device mps \
+  --lstm-reference fasttext300-mean-lr0.003 --epochs 30 \
+  --setting fasttext300-mean-lr0.003 --setting word-dropout
+```
+
+To repeat the finalist, use the last command with `--epochs 25`, keep only
+`--setting fasttext300-mean-lr0.003`, and run once with `--seed 17` and once with `--seed 73`.
+Use `--device cpu` without Apple GPU. Raw folds and curves are in
+`artifacts/embeddings/sweep/lstm-grid/` and `artifacts/embeddings/sweep/lstm-followup/`.
+The three-seed comparison is saved as `artifacts/embeddings/sweep/lstm-followup/summary.json`.
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.
