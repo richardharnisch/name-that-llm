@@ -25,7 +25,24 @@ def family(label: str) -> str:
     return next(name for name in FAMILIES if label.startswith(name))
 
 
-def plot(labels, predictions, classes, title: str, path: Path, size: float) -> None:
+def family_boundaries(classes: list[str]) -> list[float]:
+    """Positions between neighbouring classes of different families."""
+    return [
+        index - 0.5
+        for index in range(1, len(classes))
+        if family(classes[index]) != family(classes[index - 1])
+    ]
+
+
+def plot(
+    labels,
+    predictions,
+    classes,
+    title: str,
+    path: Path,
+    size: float,
+    boundaries: list[float] = (),
+) -> None:
     figure, axis = plt.subplots(figsize=(size, size * 0.86))
     ConfusionMatrixDisplay.from_predictions(
         labels,
@@ -38,6 +55,9 @@ def plot(labels, predictions, classes, title: str, path: Path, size: float) -> N
         ax=axis,
         colorbar=False,
     )
+    for position in boundaries:
+        axis.axhline(position, color="black", linewidth=1.5)
+        axis.axvline(position, color="black", linewidth=1.5)
     axis.set_title(title)
     figure.tight_layout()
     figure.savefig(path, dpi=150)
@@ -60,6 +80,7 @@ def main() -> None:
             f"{name}: out-of-fold confusion (row-normalized), accuracy {accuracy:.1%}",
             args.output / f"{name}.png",
             14,
+            family_boundaries(list(LABELS)),
         )
         true_family, predicted_family = frame["label"].map(family), frame["predicted"].map(family)
         family_accuracy = accuracy_score(true_family, predicted_family)
