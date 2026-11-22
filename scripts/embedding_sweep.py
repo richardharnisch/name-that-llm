@@ -16,13 +16,14 @@ from sklearn.metrics import accuracy_score, f1_score
 from torch import nn
 from torch.nn import functional as F
 
-from name_that_llm.config import DATA_DIR, DEFAULT_SEED
+from name_that_llm.config import DATA_DIR, DEFAULT_SEED, DEFAULT_TRAINING
 from name_that_llm.embeddings import (
     PRETRAINED_MODELS,
     WORD_TOKENIZER_NAME,
     build_embedding_encoder,
     tokenize_embedding_words,
 )
+from name_that_llm.train import TrainingLossStopper
 from name_that_llm.utils.data import LABELS, assign_folds, load_folds
 
 MODELS = {
@@ -247,6 +248,10 @@ def score_fold(encoder, config, table, tokens, lengths, labels, train, val, args
     opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=0.0001)
     rng = np.random.default_rng(args.seed)
     history = []
+    stopper = TrainingLossStopper(
+        DEFAULT_TRAINING.tol if args.early_stopping else 0.0, DEFAULT_TRAINING.patience
+    )
+    converged = False
     fixed_features = None
     if encoder == "mean" and config.mode == "frozen":
         fixed_features = matrix.new_empty((len(tokens), matrix.shape[1]), device=args.device)
@@ -291,7 +296,10 @@ def score_fold(encoder, config, table, tokens, lengths, labels, train, val, args
                     "validation_macro_f1": f1_score(y, predicted, average="macro", zero_division=0),
                 }
             )
-    return history
+        converged = stopper.should_stop(history[-1]["train_loss"])
+        if converged:
+            break
+    return history, converged
 
 
 def run(args, candidates: list[Run], group: str | None):
@@ -324,7 +332,8 @@ def run(args, candidates: list[Run], group: str | None):
                 for fraction, groups in ((0.25, 1), (0.5, 2))
             },
         }
-    output = args.output / group / f"seed-{args.seed}" if group else args.output / args.encoder
+    output = args.output / "early-stopping" if args.early_stopping else args.output
+    output = output / group / f"seed-{args.seed}" if group else output / args.encoder
     output.mkdir(parents=True, exist_ok=True)
     for config in candidates:
         if args.setting and config.name not in args.setting:
@@ -333,6 +342,14 @@ def run(args, candidates: list[Run], group: str | None):
             "encoder": args.encoder,
             "settings": asdict(config),
             "epochs": args.epochs,
+            "early_stopping": (
+                {
+                    "train_loss_tolerance": DEFAULT_TRAINING.tol,
+                    "patience": DEFAULT_TRAINING.patience,
+                }
+                if args.early_stopping
+                else None
+            ),
             "batch_size": args.batch_size,
             "seed": args.seed,
             "tokenizer": WORD_TOKENIZER_NAME,
@@ -342,7 +359,7 @@ def run(args, candidates: list[Run], group: str | None):
         }
         for fold in folds:
             train, val = splits[fold][config.fraction]
-            history = score_fold(
+            history, converged = score_fold(
                 args.encoder,
                 config,
                 tables[config.vectors],
@@ -358,6 +375,8 @@ def run(args, candidates: list[Run], group: str | None):
                     "fold": fold,
                     "train_rows": len(train),
                     "validation_rows": len(val),
+                    "epochs_run": len(history),
+                    "converged": converged,
                     "history": history,
                 }
             )
@@ -365,7 +384,8 @@ def run(args, candidates: list[Run], group: str | None):
             print(
                 f"{args.encoder} {config.name} fold {fold}: "
                 f"accuracy {final['validation_accuracy']:.4f} "
-                f"F1 {final['validation_macro_f1']:.4f} ({perf_counter() - start:.0f}s)",
+                f"F1 {final['validation_macro_f1']:.4f} after {len(history)} epochs "
+                f"({perf_counter() - start:.0f}s)",
                 flush=True,
             )
             (output / f"{config.name}.json").write_text(json.dumps(result, indent=2) + "\n")
@@ -383,6 +403,11 @@ def main():
     grid.add_argument("--lstm-grid", action="store_true")
     grid.add_argument("--lstm-reference", choices=[config.name for config in lstm_grid()])
     parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument(
+        "--early-stopping",
+        action="store_true",
+        help="Stop at the project training-loss threshold or the epoch cap.",
+    )
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--setting", action="append")

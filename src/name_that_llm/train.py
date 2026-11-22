@@ -14,6 +14,25 @@ FeatureMatrix = np.ndarray | sp.csr_matrix
 Features = FeatureMatrix | list[np.ndarray]
 
 
+class TrainingLossStopper:
+    """Stop after a run of epochs without enough relative training-loss improvement."""
+
+    def __init__(self, tolerance: float, patience: int):
+        self.tolerance = tolerance
+        self.patience = patience
+        self.best_loss = float("inf")
+        self.stalled = 0
+
+    def should_stop(self, loss: float) -> bool:
+        if self.tolerance > 0:
+            if loss < self.best_loss * (1 - self.tolerance):
+                self.best_loss, self.stalled = loss, 0
+            else:
+                self.stalled += 1
+            return self.stalled >= self.patience
+        return False
+
+
 def dense_batch(matrix: FeatureMatrix, rows: np.ndarray | slice) -> torch.Tensor:
     """Gather the chosen rows, converting sparse features one batch at a time."""
     batch = matrix[rows]
@@ -69,8 +88,7 @@ def fit(
     generator = torch.Generator().manual_seed(config.seed)
     n_train = len(x_train) if isinstance(x_train, list) else x_train.shape[0]
     history = []
-    best_loss = float("inf")
-    stalled = 0
+    stopper = TrainingLossStopper(config.tol, config.patience)
     converged = False
     for epoch in range(1, config.max_epochs + 1):
         model.train()
@@ -96,14 +114,7 @@ def fit(
             ),
         }
         history.append(entry)
-        if config.tol > 0:
-            # Compare with the best loss so far, not with the previous epoch. The loss of
-            # each epoch is noisy, so a comparison of consecutive epochs never settles.
-            if entry["train_loss"] < best_loss * (1 - config.tol):
-                best_loss, stalled = entry["train_loss"], 0
-            else:
-                stalled += 1
-            converged = stalled >= config.patience
+        converged = stopper.should_stop(entry["train_loss"])
         if epoch == 1 or epoch % 10 == 0 or converged or epoch == config.max_epochs:
             print(
                 f"epoch {epoch:3d}/{config.max_epochs}  train loss {entry['train_loss']:.4f}  "

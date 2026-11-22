@@ -571,6 +571,29 @@ uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 25
   --lstm-reference fasttext300-mean-lr0.003 --setting fasttext300-mean-lr0.003
 ```
 
+### FastText mean pooling versus LSTM with early stopping
+
+Both models use frozen fastText 300d vectors, a 128-unit MLP, and Adam at `0.003`.
+Each run has a 200-epoch cap and uses the Part 1 stopping rule. Training stops after
+10 consecutive epochs without a 1% relative improvement over the best tracked training
+loss. We score the final epoch in each run and average five prompt-grouped folds over
+seeds 42, 17, and 73.
+
+| Encoder | Epochs run (mean) | Mean accuracy | Mean macro F1 |
+|---|---:|---:|---:|
+| Mean word-vector pooling | 81–132 (101.9) | **29.11%** | **25.20%** |
+| Mean states of a 64-unit LSTM | 12–200 (155.6) | 24.27% | 22.48% |
+
+Mean pooling led by 4.84 accuracy points and scored higher on four of five seed-averaged
+folds. Two LSTM runs stopped near chance at epoch 12, and two reached the 200-epoch cap.
+For the 13 LSTM runs that passed epoch 25, mean training loss fell from 1.78 at epoch 25
+to 0.27 at the final epoch, while mean validation loss rose from 2.03 to 4.53. The
+training-loss stopping rule let training continue as validation loss rose.
+
+To repeat the runs, use the sweep commands above with `--early-stopping` and `--epochs 200`.
+Keep `--setting fasttext300-mlp128-lr0.003-drop0` for the mean-pooling command. The fold
+histories and aggregate results are in `artifacts/embeddings/fasttext-binary/early-stopping/`.
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.
