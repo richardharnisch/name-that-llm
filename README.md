@@ -118,8 +118,10 @@ uv run python -m nltk.downloader punkt_tab
 ```
 
 The command uses NLTK to split sentences and tokenize words before lowercasing for lookup.
-It keeps punctuation and stopwords. It uses Gensim's `glove-wiki-gigaword-300` and
-`fasttext-wiki-news-subwords-300`. Unknown tokens contribute zero vectors. Mean pooling
+It keeps punctuation and stopwords. GloVe uses Gensim's `glove-wiki-gigaword-300`.
+FastText uses the original `wiki-news-300d-1M-subword.bin` and can compose vectors for
+words outside its lookup vocabulary from character n-grams. The binary is downloaded
+to `models/fasttext` on first use. Tokens without a vector contribute zeros. Mean pooling
 averages the word vectors. LSTM pooling uses the final hidden state of a one-layer LSTM
 with 64 hidden units, trained with the classifier.
 Normalization applies to the resulting document vector in both cases. To try the LSTM
@@ -133,7 +135,8 @@ To compare the two embedding downloads, run `uv run python scripts/compare_embed
 It measures vocabulary coverage, records cosine nearest neighbors, and compares frozen mean
 pooling on the same folds and with the same training defaults as the BPE classifiers. It
 uses the existing assignments in `data/folds.csv` and saves the combined report to
-`artifacts/embeddings/comparison.json`.
+`artifacts/embeddings/comparison-binary.json`. The coverage report separates exact
+vocabulary matches from vectors composed by fastText.
 
 **Feature scale.** By default, each document vector is scaled to unit L2 norm
 (`--normalize`; use `--no-normalize` to turn it off). The three encoders produce vectors

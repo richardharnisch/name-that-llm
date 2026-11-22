@@ -234,12 +234,12 @@ The comparison used all 4,818 passages from 282 prompts and the same five folds 
 same fold and balances the 18 model labels. Each run trains on four folds and validates
 on the fifth, so each passage is held out once.
 
-Both 300-dimensional Gensim downloads used NLTK sentence and word tokenization followed
-by lowercasing. They used frozen vectors, normalized mean pooling, and a log-linear
-classifier. The runs used the same training defaults as Part 1, including seed 42 and
-the training-loss stopping rule.
-Run `uv run python scripts/compare_embeddings.py` to reproduce. The full report is in
-`artifacts/embeddings/comparison.json`.
+These runs used the 300-dimensional Gensim word-vector exports, including the fixed
+fastText table. They used NLTK sentence and word tokenization followed by lowercasing,
+frozen vectors, normalized mean pooling, and a log-linear classifier. The training defaults
+match Part 1, including seed 42 and the training-loss stopping rule. The original report is
+in `artifacts/embeddings/comparison.json`. See the fastText binary comparison below for the
+current implementation and its results.
 
 | Tokenization | GloVe token coverage | GloVe distinct-token coverage | fastText token coverage | fastText distinct-token coverage |
 |---|---:|---:|---:|---:|
@@ -402,12 +402,12 @@ seed means ranged from 29.90% to 30.51%. Its mean of 30.17% gives no clear impro
 Part 1. This compares complete text representations. The frozen comparison cannot isolate
 pretrained initialization from the representation itself.
 
-Run `uv run python scripts/embedding_sweep.py --pooling-grid --epochs 100` to reproduce the
-initial grid. For the follow-up, repeat this command with seeds `42`, `17`, and `73`:
+Run `uv run python scripts/embedding_sweep.py --pooling-grid --epochs 100` to apply the
+same grid with the current embeddings. For the 200-epoch follow-up, repeat this command
+with seeds `42`, `17`, and `73`:
 
 ```sh
 uv run python scripts/embedding_sweep.py --pooling-grid --epochs 200 --seed 42 \
-  --output artifacts/embeddings/sweep/pooling-refine \
   --setting glove50 --setting glove300 --setting fasttext300 \
   --setting glove300-mlp128-lr0.003-drop0 --setting fasttext300-mlp128-lr0.003-drop0
 ```
@@ -501,7 +501,7 @@ best tuned pooling run, the LSTM was 2.67 points lower and won one of five seed-
 folds. Using the one-point ROPE, the posterior probability that the best pooling run led
 by more than one point was 86.9%. These are comparisons on the folds used for tuning.
 
-To reproduce the recurrent experiments on Apple GPU, use:
+To run the recurrent experiments with the current embeddings on Apple GPU, use:
 
 ```sh
 uv run python scripts/embedding_sweep.py --encoder lstm --device mps --lstm-grid --epochs 20
@@ -517,6 +517,59 @@ To repeat the finalist, use the last command with `--epochs 25`, keep only
 Use `--device cpu` without Apple GPU. Raw folds and curves are in
 `artifacts/embeddings/sweep/lstm-grid/` and `artifacts/embeddings/sweep/lstm-followup/`.
 The three-seed comparison is saved as `artifacts/embeddings/sweep/lstm-followup/summary.json`.
+
+## Part 2 original fastText binary
+
+The fastText encoder now loads `wiki-news-300d-1M-subword.bin`. The binary has two
+million explicit words and can compose vectors from character four-grams for other
+tokens. The Gensim word-vector export has about one million explicit words. The comparison
+uses the same 4,818 passages, five prompt-grouped folds, and NLTK sentence splitting and
+word tokenization followed by lowercasing. The vectors stay frozen in all runs. The tuned
+classifiers also use the same training-fold vocabulary rule and seeds 42, 17, and 73.
+
+| fastText 300d lookup | Token coverage | Distinct-token coverage |
+|---|---:|---:|
+| Gensim export, direct lookup | 99.23% | 94.25% |
+| Original binary, direct lookup | 99.39% | 95.43% |
+| Original binary, direct lookup plus subwords | **100.00%** | **100.00%** |
+
+The larger vocabulary directly covers 1,010 more occurrences. Subwords cover the remaining
+3,926 occurrences across 1,062 distinct tokens, including NLTK's opening and closing quote
+markers and `n't`. The binary still places `therefore` near `thus` and the em dash near
+the en dash. The closest neighbor of `however` becomes the spelling variant `howevever`,
+followed by `though` and `although`. The 21,907 tokens shared by both releases have cosine
+similarity of 1 to rounding precision for their paired vectors. Their vector lengths differ
+by word, with a median binary-to-export ratio of 0.40. The swap therefore changes word
+weights in the document representation as well as coverage.
+
+| Classifier and representation | Epochs | Export accuracy | Binary accuracy | Export macro F1 | Binary macro F1 |
+|---|---:|---:|---:|---:|---:|
+| Mean pooling + logistic regression, original stopping rule | Varies | 19.60% | 19.12% | 14.99% | 14.30% |
+| Mean pooling + logistic regression | 200 | 21.68% | 21.23% | 17.20% | 16.63% |
+| Mean pooling + 128-unit MLP | 25 | 23.23% | **25.45%** | 17.95% | **20.82%** |
+| Mean pooling + 128-unit MLP | 200 | 30.17% | **30.21%** | 27.12% | **27.25%** |
+| Mean states of a 64-unit LSTM + 128-unit MLP | 25 | 27.50% | 24.02% | 23.49% | 20.34% |
+
+The first row uses seed 42. All other rows average three seeds over the five folds. The
+tuned 200-epoch pooling score was effectively unchanged and stayed close to the Part 1
+BPE token-indicator baseline of 30.4%. At 25 epochs, switching to the binary improved
+mean pooling on all five seed-averaged folds. The LSTM lost 3.48 accuracy points overall.
+Its seed means ranged from 22.21% to 27.09%, and two of the 15 runs stalled near chance.
+Repeating those two runs reproduced the same validation accuracies, 6.25% and 5.86%.
+At 25 epochs, binary mean pooling was 1.44 points ahead of the binary LSTM. Both use
+the previously selected settings.
+
+Run the binary comparison with these commands. Repeat both sweep commands with seeds
+`17` and `73`. Use `--device cpu` when Apple GPU support is unavailable.
+
+```sh
+uv run python scripts/compare_embeddings.py --embedding fasttext \
+  --output artifacts/embeddings/fasttext-binary/linear-comparison.json
+uv run python scripts/embedding_sweep.py --pooling-grid --epochs 200 --seed 42 \
+  --setting fasttext300 --setting fasttext300-mlp128-lr0.003-drop0
+uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 25 --seed 42 \
+  --lstm-reference fasttext300-mean-lr0.003 --setting fasttext300-mean-lr0.003
+```
 
 ## Sources
 

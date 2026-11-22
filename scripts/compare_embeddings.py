@@ -8,6 +8,7 @@ from pathlib import Path
 
 import torch
 from gensim.models import KeyedVectors
+from gensim.models.fasttext import FastTextKeyedVectors
 
 from name_that_llm.config import (
     DATA_DIR,
@@ -31,13 +32,25 @@ METRICS = ("validation_accuracy", "validation_macro_f1", "validation_log_loss")
 
 
 def coverage(counts: Counter[str], vectors: KeyedVectors) -> dict:
-    missing = Counter({word: count for word, count in counts.items() if word not in vectors})
+    outside = Counter(
+        {word: count for word, count in counts.items() if not vectors.has_index_for(word)}
+    )
+    missing = outside
+    if isinstance(vectors, FastTextKeyedVectors):
+        missing = Counter(
+            {word: count for word, count in outside.items() if not vectors[word].any()}
+        )
     return {
         "tokens": counts.total(),
         "types": len(counts),
         "token_coverage": 1 - missing.total() / counts.total(),
         "type_coverage": 1 - len(missing) / len(counts),
+        "vocabulary_token_coverage": 1 - outside.total() / counts.total(),
+        "vocabulary_type_coverage": 1 - len(outside) / len(counts),
+        "composed_tokens": outside.total() - missing.total(),
+        "composed_types": len(outside) - len(missing),
         "most_frequent_missing": missing.most_common(15),
+        "most_frequent_outside_vocabulary": outside.most_common(15),
     }
 
 
@@ -60,6 +73,8 @@ def run(args: argparse.Namespace) -> dict:
     runs_dir = args.output.parent / f"{args.output.stem}-runs"
     models = {}
     for name, model_id in PRETRAINED_MODELS.items():
+        if args.embedding and name not in args.embedding:
+            continue
         print(f"Loading {model_id}", flush=True)
         encoder = build_embedding_encoder(name)
         if len(encoder) != 300:
@@ -69,8 +84,10 @@ def run(args: argparse.Namespace) -> dict:
         }
         for method, stats in vocabulary.items():
             print(
-                f"{name} {method}: token coverage {stats['token_coverage']:.2%}, "
-                f"type coverage {stats['type_coverage']:.2%}",
+                f"{name} {method}: token coverage {stats['token_coverage']:.2%} "
+                f"({stats['vocabulary_token_coverage']:.2%} direct), "
+                f"type coverage {stats['type_coverage']:.2%} "
+                f"({stats['vocabulary_type_coverage']:.2%} direct)",
                 flush=True,
             )
         neighbors = {
@@ -121,7 +138,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
     parser.add_argument("--epochs", type=int, default=DEFAULT_TRAINING.max_epochs)
-    parser.add_argument("--output", type=Path, default=Path("artifacts/embeddings/comparison.json"))
+    parser.add_argument(
+        "--embedding", choices=PRETRAINED_MODELS, action="append", help="Default: both embeddings."
+    )
+    parser.add_argument(
+        "--output", type=Path, default=Path("artifacts/embeddings/comparison-binary.json")
+    )
     args = parser.parse_args()
     if args.epochs < 1:
         parser.error("--epochs must be positive")

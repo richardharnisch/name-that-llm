@@ -6,6 +6,7 @@ import json
 from dataclasses import asdict, dataclass, replace
 from itertools import product
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import perf_counter
 
 import numpy as np
@@ -19,6 +20,7 @@ from name_that_llm.config import DATA_DIR, DEFAULT_SEED
 from name_that_llm.embeddings import (
     PRETRAINED_MODELS,
     WORD_TOKENIZER_NAME,
+    build_embedding_encoder,
     tokenize_embedding_words,
 )
 from name_that_llm.utils.data import LABELS, assign_folds, load_folds
@@ -28,9 +30,15 @@ MODELS = {
     "glove50": "glove-wiki-gigaword-50",
     "fasttext300": PRETRAINED_MODELS["fasttext"],
 }
+INPUT_CACHE = "subword-inputs.npz"
 
 
 def read_vectors(name: str, word_ids: dict[bytes, int]) -> np.ndarray:
+    if name == PRETRAINED_MODELS["fasttext"]:
+        encoder = build_embedding_encoder("fasttext")
+        table = np.zeros((len(word_ids) + 2, len(encoder)), dtype=np.float32)
+        table[list(word_ids.values())] = encoder.from_words([word.decode() for word in word_ids])
+        return table
     path = Path(downloader.BASE_DIR) / name / f"{name}.gz"
     if not path.is_file():
         path = Path(downloader.load(name, return_path=True))
@@ -60,10 +68,17 @@ def prepare(data_dir: Path, output: Path) -> Path:
         print(f"Preparing {name}", flush=True)
         tables[key] = read_vectors(name, word_ids)
     output.mkdir(parents=True, exist_ok=True)
-    cache = output / "native-inputs.npz"
-    np.savez(
-        cache, ids=passages["id"].to_numpy(dtype=str), tokens=token_ids, lengths=lengths, **tables
-    )
+    cache = output / INPUT_CACHE
+    with TemporaryDirectory(dir=output) as directory:
+        pending = Path(directory) / INPUT_CACHE
+        np.savez(
+            pending,
+            ids=passages["id"].to_numpy(dtype=str),
+            tokens=token_ids,
+            lengths=lengths,
+            **tables,
+        )
+        pending.replace(cache)
     print(f"Cached inputs in {cache}", flush=True)
     return cache
 
@@ -281,7 +296,7 @@ def score_fold(encoder, config, table, tokens, lengths, labels, train, val, args
 
 def run(args, candidates: list[Run], group: str | None):
     start = perf_counter()
-    cache = args.output / "native-inputs.npz"
+    cache = args.output / INPUT_CACHE
     if args.prepare_only or not cache.is_file():
         prepare(args.data_dir, args.output)
     if args.prepare_only:
@@ -321,6 +336,7 @@ def run(args, candidates: list[Run], group: str | None):
             "batch_size": args.batch_size,
             "seed": args.seed,
             "tokenizer": WORD_TOKENIZER_NAME,
+            "pretrained_model": MODELS[config.vectors],
             "device": str(args.device),
             "folds": [],
         }
@@ -358,7 +374,7 @@ def run(args, candidates: list[Run], group: str | None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=DATA_DIR)
-    parser.add_argument("--output", type=Path, default=Path("artifacts/embeddings/sweep"))
+    parser.add_argument("--output", type=Path, default=Path("artifacts/embeddings/fasttext-binary"))
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--encoder", choices=("mean", "lstm"), default="mean")
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
