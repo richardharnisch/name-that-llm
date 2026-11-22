@@ -383,6 +383,13 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=1000)
     parser.add_argument("--chains", type=int, default=4)
     parser.add_argument(
+        "--features",
+        nargs="+",
+        choices=list(FEATURES),
+        default=list(FEATURES),
+        help="Passage features to use (default: all).",
+    )
+    parser.add_argument(
         "--control-label",
         action="store_true",
         help="Add indicators of the true author model, so text-feature weights compare "
@@ -406,7 +413,7 @@ def main() -> None:
     table = correctness_table(systems)
     if set(table["id"]) != set(passages["id"]):
         raise ValueError("The systems must predict every passage in folds.csv exactly once.")
-    raw = passage_features(passages)
+    raw = passage_features(passages)[args.features]
     standardized = (raw - raw.mean()) / raw.std()
 
     raw.to_csv(args.output / "features.csv")
@@ -442,7 +449,7 @@ def main() -> None:
     )
     summary["control_label"] = args.control_label
     summary["rope"] = args.rope
-    summary["features"] = FEATURES
+    summary["features"] = {name: FEATURES[name] for name in args.features}
     summary["systems"] = {name: str(path) for name, path in systems.items()}
     (args.output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
