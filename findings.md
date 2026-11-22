@@ -276,6 +276,84 @@ token-indicator baseline scored 30.4% mean accuracy on these folds. The embeddin
 also differ in pretraining corpus and vocabulary, so the comparison measures the released
 embeddings as a whole.
 
+## Part 2 mean pooling vs LSTM
+
+Both encoders used frozen GloVe 300d, **NLTK sentence splitting → NLTK word tokenization
+→ lowercase**, the same five prompt-grouped folds, seed 42, and the Part 1 optimizer and
+training-loss stopping rule. Both used a linear classifier. Mean pooling averaged the vectors.
+The one-layer LSTM used 64 hidden units and the final hidden state. Both normalized the
+passage representation before classification.
+
+| Encoder | Mean train accuracy | Mean validation accuracy (± fold SD) | Mean validation macro F1 |
+|---|---:|---:|---:|
+| Mean pooling | 21.38% | 18.56% ± 1.61 pp | 14.49% |
+| LSTM | 82.25% | 16.02% ± 3.39 pp | 14.41% |
+
+The LSTM won one fold and was 2.55 percentage points lower on average. With a one-point
+ROPE, the posterior probability that mean pooling led by more than one point was 69.1%.
+Four LSTM folds reached at least 99.7% training accuracy while validation accuracy stayed
+between 16.6% and 19.0%. In fold 0, validation loss reached 2.25 at epoch 16 and rose to
+4.19 by epoch 112, while training loss fell from 1.97 to 0.03. Fold 3 stopped after 18
+epochs with 11.5% train accuracy, which shows the training-loss rule also stopped an
+underfit run. The run files and curves are in `artifacts/embeddings/glove-lstm/`.
+
+Reproduce with `uv run ntl-train --encoder glove --pooling lstm --output artifacts/embeddings/glove-lstm`.
+
+## Part 2 design experiments
+
+The sweep uses the same tokenizer and five folds. Every setting uses 20 Adam epochs,
+batch size 128, weight decay `1e-4`, and seed 42. This fixed budget applies to both encoders.
+The word vocabulary is built from each training split for all settings, so validation-only
+words use the same unknown token when comparing frozen, fine-tuned, and randomly initialized
+embeddings. The 25% and 50% subsets use nested groups of training prompts and keep the full
+validation fold. At a fixed epoch count, smaller subsets also get fewer optimizer updates.
+
+GloVe 50d and 300d are native releases trained on Wikipedia + Gigaword. They test width
+within GloVe. FastText is the native 300d Wiki News release and provides a same-width
+model comparison with GloVe 300d. The remaining changes use GloVe 50d as their reference.
+
+| Setting | Mean pooling accuracy | LSTM accuracy |
+|---|---:|---:|
+| GloVe 50d, frozen | 11.04% | 12.72% |
+| GloVe 300d, frozen | 15.59% | 12.54% |
+| fastText 300d, frozen | 16.25% | 9.65% |
+| GloVe 50d, MLP head for pooling or 32 hidden units for LSTM | 13.44% | 13.34% |
+| GloVe 50d, Adam learning rate `3e-3` instead of `1e-3` | 12.85% | 13.86% |
+| GloVe 50d, fine-tuned | 15.01% | 14.75% |
+| 50d, randomly initialized and trained | 25.24% | 16.73% |
+| GloVe 50d, 50% of training prompts | — | 10.97% |
+| GloVe 50d, 25% of training prompts | — | 8.68% |
+
+- **Embedding size.** GloVe 300d improved mean pooling by 4.55 percentage points and won
+  all five folds. It changed LSTM accuracy by −0.18 points on average, with differences
+  in both directions. This comparison uses two published checkpoints from one family.
+- **Architecture and optimizer.** With 50d frozen GloVe, the pooling MLP head gained 2.40
+  points over a linear head. The 32-unit LSTM gained 0.62 points over 64 units on average,
+  with mixed fold results. Raising Adam's learning rate to `3e-3` gained 1.81 points for
+  pooling and 1.14 for the LSTM at the fixed epoch budget.
+- **Pretraining.** Random initialization beat fine-tuned GloVe by 10.23 points for pooling
+  and won all five folds. For the LSTM, random initialization averaged 1.98 points higher,
+  but fine-tuned GloVe won three folds. The best pooling setting scored 25.24%, below the
+  earlier 30.4% BPE token-indicator baseline. These runs give no clear benefit from
+  pretrained initialization.
+- **Data size.** With frozen 50d GloVe and 64 hidden units, using 25%, 50%, and 100% of the
+  training prompts gave 8.68%, 10.97%, and 12.72% accuracy. The full set beat each smaller
+  set on all five validation folds.
+- **LSTM vs. pooling.** The 50d frozen LSTM beat its matched pooling reference by 1.68 points
+  and won all five folds at 20 epochs. At 300d, mean pooling won all five matched folds
+  for both embeddings. The best LSTM scored 16.73% accuracy and 13.80% macro F1. The best
+  pooling model scored 25.24% accuracy and 19.93% macro F1. The architectural advantage
+  depended on the embedding setup, and recurrence did not improve on the best pooling model.
+
+The sweep uses one training seed and a fixed budget. Its learning-rate and architecture
+effects describe performance at 20 epochs. The longer GloVe comparison above shows why
+training-loss convergence alone gave poor validation performance for the LSTM.
+
+Run `uv run python scripts/embedding_sweep.py --encoder mean` and
+`uv run python scripts/embedding_sweep.py --encoder lstm --device mps` to reproduce.
+Use `--device cpu` on machines without Apple GPU support. Per-fold scores and loss histories
+are in `artifacts/embeddings/sweep/`, with aggregate scores in `summary.json`.
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.
