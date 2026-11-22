@@ -10,12 +10,12 @@ from nltk.tokenize import word_tokenize
 
 from .utils.encoder import Encoder
 
-WORD_TOKENIZER_NAME = "nltk-word-lowercase"
+WORD_TOKENIZER_NAME = "nltk-sentence-word-lowercase"
 
 
 def tokenize_embedding_words(text: str) -> list[str]:
-    """Tokenize a passage without dropping stopwords or punctuation."""
-    return word_tokenize(text.lower(), preserve_line=True)
+    """Use original case for sentence splitting, then lowercase for lookup."""
+    return [token.lower() for token in word_tokenize(text, preserve_line=False)]
 
 
 class WordEmbeddingEncoder(Encoder):

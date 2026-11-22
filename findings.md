@@ -234,9 +234,10 @@ The comparison used all 4,818 passages from 282 prompts and the same five folds 
 same fold and balances the 18 model labels. Each run trains on four folds and validates
 on the fifth, so each passage is held out once.
 
-Both 300-dimensional Gensim downloads used the same lowercase NLTK word tokenizer,
-frozen vectors, normalized mean pooling, and log-linear classifier. The runs used the
-same training defaults as Part 1, including seed 42 and the training-loss stopping rule.
+Both 300-dimensional Gensim downloads used NLTK sentence and word tokenization followed
+by lowercasing. They used frozen vectors, normalized mean pooling, and a log-linear
+classifier. The runs used the same training defaults as Part 1, including seed 42 and
+the training-loss stopping rule.
 Run `uv run python scripts/compare_embeddings.py` to reproduce. The full report is in
 `artifacts/embeddings/comparison.json`.
 
@@ -244,29 +245,32 @@ Run `uv run python scripts/compare_embeddings.py` to reproduce. The full report 
 |---|---:|---:|---:|---:|
 | Whitespace | 78.36% | 37.78% | 86.62% | 49.41% |
 | Lowercase + whitespace | 83.67% | 41.60% | 86.42% | 47.36% |
-| Lowercase + NLTK | 96.45% | 73.91% | 98.08% | 82.87% |
+| Lowercase + NLTK word tokenization | 96.45% | 73.91% | 98.08% | 82.87% |
+| NLTK sentence and word tokenization, then lowercase | 99.53% | 92.58% | 99.23% | 94.25% |
 
-NLTK recovered many words that whitespace splitting left attached to punctuation. The
-configuration keeps punctuation and stopwords as possible style cues. Common misses include
-`it.` and `them.` for GloVe because NLTK still leaves some internal sentence periods attached.
-For fastText, the most frequent misses are NLTK's quote markers and the contraction token
-`n't`. The Gensim fastText download contains a fixed word table, so its missing tokens use
-zero vectors as well.
+NLTK recovered many words that whitespace splitting left attached to punctuation. Enabling
+sentence splitting removed all 319 occurrences of `it.` as a single token. Lowercasing after
+tokenization lets NLTK use the original case to find sentence boundaries. The configuration
+keeps punctuation and stopwords as possible style cues. For fastText, NLTK's quote markers
+and the contraction token `n't` still miss the vocabulary. Both Gensim downloads use fixed
+word tables. Missing tokens contribute zero vectors.
 
 Both models placed `however` near `although` and `though`, and `therefore` near `thus` and
 `consequently`. GloVe placed the semicolon near a colon, comma, and period. fastText placed
 the em dash near the en dash and hyphen. Some neighbors were weaker style matches, such as
 GloVe's `overall` near `improved` and fastText's `however` near `therefore`.
 
-| Embedding | Mean accuracy (± fold SD) | Mean macro F1 (± fold SD) |
-|---|---:|---:|
-| `glove-wiki-gigaword-300` | 19.02% ± 1.48 pp | 15.00% ± 1.00 pp |
-| `fasttext-wiki-news-subwords-300` | 19.54% ± 1.58 pp | 15.16% ± 1.02 pp |
+| Embedding | Mean accuracy before sentence splitting | Mean accuracy after (± fold SD) | Mean macro F1 after (± fold SD) |
+|---|---:|---:|---:|
+| `glove-wiki-gigaword-300` | 19.02% | 18.56% ± 1.61 pp | 14.49% ± 1.23 pp |
+| `fasttext-wiki-news-subwords-300` | 19.54% | 19.60% ± 1.82 pp | 14.99% ± 1.32 pp |
 
-fastText led by 0.52 percentage points in mean accuracy. The paired fold differences were
-+0.72, +1.03, +0.52, +0.42, and −0.10 points. With the same one-point ROPE as Part 1, the
-Bayesian correlated t-test gives a 91.7% posterior probability that the accuracy difference
-falls within that interval. Both runs use one training seed. The Part 1 log-linear BPE
+With sentence splitting, coverage increased for both models. Mean accuracy fell by 0.45
+percentage points for GloVe and rose by 0.06 points for fastText. In the new runs, fastText
+led by 1.03 points on average. The paired differences were +2.98, +1.54, +1.47, −0.10,
+and −0.73 points. With the same one-point ROPE as Part 1, the Bayesian correlated t-test
+assigns 51.2% probability to a fastText advantage of more than one point and 43.4% to
+practical equivalence. Both runs use one training seed. The Part 1 log-linear BPE
 token-indicator baseline scored 30.4% mean accuracy on these folds. The embedding releases
 also differ in pretraining corpus and vocabulary, so the comparison measures the released
 embeddings as a whole.

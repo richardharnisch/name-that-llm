@@ -111,8 +111,14 @@ the features from the saved `input_ids` without tokenizing again, trains a new m
 training set of the fold, and evaluates it on the validation set of the fold. The tokenizer
 and the TF-IDF weights are fitted on the training set of the fold only.
 
-For GloVe or fastText, the command lowercases each passage and uses NLTK word tokenization
-with punctuation and stopwords retained. It uses Gensim's `glove-wiki-gigaword-300` and
+For GloVe or fastText, install the English sentence tokenizer data once:
+
+```sh
+uv run python -m nltk.downloader punkt_tab
+```
+
+The command uses NLTK to split sentences and tokenize words before lowercasing for lookup.
+It keeps punctuation and stopwords. It uses Gensim's `glove-wiki-gigaword-300` and
 `fasttext-wiki-news-subwords-300`. Unknown tokens contribute zero vectors. Mean pooling
 averages the word vectors. LSTM pooling uses the final hidden state of a one-layer LSTM
 with 64 hidden units, trained with the classifier.
