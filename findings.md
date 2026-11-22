@@ -673,6 +673,179 @@ uv run python scripts/embedding_sweep.py --encoder lstm --device mps --epochs 20
   --setting fasttext300-mean-lr0.003 --setting word-dropout
 ```
 
+## Part 2 error analysis
+
+The question: which properties of a passage make it easier or harder to attribute, and do
+these properties affect the three main designs differently?
+
+### Systems and data
+
+| System | Representation | Classifier | Accuracy (seeds 42 / 17 / 73) |
+|---|---|---|---:|
+| `bpe-indicator` | BPE token indicators, 8,000 tokens (Part 1) | Log-linear | 30.45% (one Part 1 run) |
+| `glove-pool-mlp` | Frozen GloVe 300d, mean pooling | 128-unit MLP, Adam `0.003`, 200 epochs | 25.97 / 26.75 / 25.51% |
+| `glove-lstm` | Frozen GloVe 300d, mean of 64-unit LSTM states, 15% word dropout | 128-unit MLP, Adam `0.003`, 25 epochs | 27.94 / 26.36 / 27.48% |
+
+These are the leading settings of the earlier GloVe sweeps. We used GloVe and not fastText
+because the fastText binary is a 4.5 GB download. The GloVe accuracies are close to the
+earlier sweep results (26.08% and 27.65%).
+
+Each passage gets one prediction from each system: the model of fold k predicts the
+passages of fold k, which it did not train on. So all 4,818 passages are analysis
+data. There is no separate devtest set, because the project uses all passages in
+cross-validation (see "Cross-validation folds" in the README). The settings were chosen
+on these same folds, so the accuracies are slightly optimistic. The feature weights
+below compare systems with each other, which is less affected by this.
+
+### Features
+
+| Feature | Definition | Reason to test it |
+|---|---|---|
+| `log_words` | log of the word count | A longer passage gives more evidence. |
+| `sentence_length` | mean words per sentence (NLTK) | Sentence structure is a style property. |
+| `lexical_diversity` | mean type-token ratio in 40-word windows | Vocabulary richness can differ by model. The window removes the length effect. |
+| `unseen_word_rate` | share of word tokens that do not occur in the training folds | Rare words have no trained vector in the word pipeline. |
+| `reading_ease` | Flesch reading ease (`textstat`) | Simple and complex text can be easier or harder. |
+| `em_dash_rate` | em dashes per 100 words | A known LLM style marker. |
+| `semicolon_colon_rate` | semicolons and colons per 100 words | Punctuation style. |
+| `curly_quotes` | contains `’`, `‘`, `“` or `”` | See below. |
+| `straight_apostrophe` | contains `'` | See below. |
+
+Typography separates the model families. Curly apostrophes occur in 51–62% of the GPT
+passages, 33–45% of Gemini and 52% of Qwen, but in at most 3% of the Claude, GLM and Kimi
+passages. Those three families use the straight apostrophe in 58–74% of passages and the em
+dash in 63–82%. BPE keeps such characters as their own tokens. The word pipeline also has a
+GloVe vector for `’`, `“` and `—`, but mean pooling averages that one vector with more than
+100 others.
+
+### Method
+
+We fit the Bayesian logistic regression of the tutorial (`part2/analysis.py`), with NUTS in
+NumPyro. For passage n and system s:
+
+`logit P(correct) = phi + delta_s + w_s · f_n`, with Laplace(0, 1) priors on all parameters.
+
+The features are standardized, so a weight is the change in the log-odds of a correct
+prediction for one standard deviation of the feature. Each system has its own weights.
+All fits had 0 divergences and r_hat ≤ 1.007.
+
+**The author model is a confounder.** The features are strongly related to the true label,
+and some labels are much easier than others (per-label accuracy of `bpe-indicator` is from
+6% for `claude-fable-5` and `kimi-k3` to 57% for `gemini-3.1-pro-preview`). Without a
+control, a feature can look important only because it marks an easy or a hard model. For
+this reason the main analysis (`--control-label`) adds 17 indicators of the true author
+model. The weights then compare passages of the same model.
+
+| Feature | Weight without label control (seed 42, BPE / pool / LSTM) | Weight with label control (seed 42, BPE / pool / LSTM) |
+|---|---|---|
+| `em_dash_rate` | −0.08 / −0.11 / −0.09 | +0.03 / +0.00 / +0.04 |
+| `semicolon_colon_rate` | −0.12 / −0.05 / −0.09 | −0.02 / −0.01 / −0.02 |
+| `reading_ease` | −0.16 / −0.11 / −0.01 | −0.02 / −0.04 / +0.09 |
+
+Without the control, em dashes and semicolons seem to cause errors. With the control, these
+effects are approximately 0. Em dashes and semicolons are frequent in the Claude, GLM and
+Kimi families, which are the hardest families to identify. They do not make a passage harder
+by themselves.
+
+### Results with label control
+
+Weights with 90% posterior intervals. The BPE row is the same Part 1 run for every seed.
+
+| Feature | System | Seed 42 | Seed 17 | Seed 73 |
+|---|---|---|---|---|
+| `log_words` | BPE | +0.26 [+0.20, +0.32] | +0.26 [+0.20, +0.32] | +0.26 [+0.20, +0.32] |
+| | pool | +0.18 [+0.12, +0.24] | +0.16 [+0.10, +0.23] | +0.17 [+0.11, +0.23] |
+| | LSTM | +0.19 [+0.12, +0.25] | +0.28 [+0.21, +0.34] | +0.21 [+0.15, +0.27] |
+| `sentence_length` | BPE | +0.10 [+0.02, +0.17] | +0.10 [+0.02, +0.17] | +0.10 [+0.02, +0.17] |
+| | pool | +0.20 [+0.13, +0.28] | +0.18 [+0.10, +0.25] | +0.21 [+0.13, +0.29] |
+| | LSTM | +0.24 [+0.16, +0.31] | +0.20 [+0.12, +0.28] | +0.25 [+0.18, +0.33] |
+| `curly_quotes` | BPE | +0.20 [+0.14, +0.27] | +0.20 [+0.14, +0.27] | +0.20 [+0.14, +0.27] |
+| | pool | +0.14 [+0.07, +0.21] | +0.13 [+0.06, +0.20] | +0.20 [+0.13, +0.27] |
+| | LSTM | +0.13 [+0.06, +0.19] | +0.12 [+0.05, +0.19] | +0.11 [+0.04, +0.18] |
+| `reading_ease` | BPE | −0.02 [−0.11, +0.05] | −0.02 [−0.11, +0.06] | −0.02 [−0.11, +0.05] |
+| | pool | −0.04 [−0.12, +0.05] | −0.01 [−0.09, +0.08] | +0.02 [−0.06, +0.11] |
+| | LSTM | +0.09 [+0.01, +0.17] | +0.07 [−0.01, +0.16] | +0.11 [+0.03, +0.19] |
+| `unseen_word_rate` | BPE | −0.08 [−0.14, −0.02] | −0.08 [−0.14, −0.02] | −0.08 [−0.14, −0.02] |
+| | pool | −0.06 [−0.13, +0.01] | −0.09 [−0.15, −0.02] | −0.01 [−0.07, +0.06] |
+| | LSTM | −0.03 [−0.09, +0.03] | −0.03 [−0.09, +0.03] | +0.02 [−0.04, +0.09] |
+| `lexical_diversity` | BPE | −0.01 [−0.07, +0.06] | −0.01 [−0.07, +0.06] | −0.01 [−0.07, +0.06] |
+| | pool | +0.01 [−0.06, +0.07] | −0.04 [−0.10, +0.03] | −0.00 [−0.07, +0.06] |
+| | LSTM | +0.06 [−0.01, +0.12] | +0.09 [+0.02, +0.16] | +0.08 [+0.01, +0.15] |
+
+`em_dash_rate`, `semicolon_colon_rate` and `straight_apostrophe` are approximately 0 for all
+systems and seeds. The full tables are in `weights.csv` of each report.
+
+Posterior probability that the first system has the larger weight, for the three seeds:
+
+| Feature | Comparison | P (seeds 42 / 17 / 73) |
+|---|---|---|
+| `log_words` | BPE > pool | 0.93 / 0.96 / 0.95 |
+| `sentence_length` | BPE > LSTM | 0.01 / 0.06 / 0.01 |
+| `sentence_length` | BPE > pool | 0.05 / 0.11 / 0.04 |
+| `curly_quotes` | BPE > LSTM | 0.90 / 0.92 / 0.94 |
+| `reading_ease` | BPE > LSTM | 0.05 / 0.09 / 0.03 |
+
+### Interpretation
+
+These results hold for all three seeds:
+
+1. **Longer passages are easier for all systems.** The BPE model gains the most from
+   length (P > 0.93 against pooling). Each extra token can switch on one more indicator,
+   while a mean of word vectors changes little when more words are added.
+2. **Long sentences help the embedding systems approximately twice as much as BPE.** BPE
+   indicators record which tokens occur, but not how they are arranged. A possible cause is
+   that GloVe vectors carry more useful information in long, content-rich sentences. We did
+   not test this cause.
+3. **Curly quotes help all systems, even among passages of the same model, and BPE the most.**
+   BPE has a separate indicator for `’`, so the typography cue is always visible. In the
+   word pipeline, `’` is one vector among more than 100. Its effect is stronger for BPE
+   than for the LSTM in all seeds (P 0.90–0.94).
+4. **Only the LSTM does better on easier text** (higher Flesch reading ease, and a small
+   positive weight for lexical diversity). The other two systems show no clear effect.
+5. **Unseen words hurt BPE slightly** (−0.08 in every fit), although BPE can split unknown
+   words into known subwords. The effect for the word systems is small and changes sign
+   between seeds.
+6. **The systems make different errors.** All three are wrong on 47.4–48.3% of passages and
+   all three are correct on only 7.7–8.2%. BPE alone is correct on 12.6–13.2%, and at least
+   one system is correct on 51.7–52.6%, against 30.4% for the best single system. A
+   combination of BPE and embedding systems is a good next experiment.
+
+### Limits
+
+- Observations are not independent: the same passage occurs once per system, and the
+  passages of one prompt share content. The posterior intervals are therefore too narrow.
+  A hierarchical model with prompt and passage effects would correct this.
+- The BPE system is one Part 1 run (seed 42). Its seed variance is not in this analysis.
+- Features are correlated (for example `curly_quotes` and `straight_apostrophe`: −0.36;
+  `reading_ease` and `sentence_length`: −0.48). Weights of correlated features share
+  their effect, so a single weight must be read with care.
+- The features describe the passage only. Properties of the prompt, for example the topic
+  or the requested length, are not included.
+
+### Reproduce
+
+```sh
+E=artifacts/error-analysis
+for seed in 42 17 73; do
+  uv run python scripts/embedding_sweep.py --pooling-grid --vectors glove300 --output $E \
+    --epochs 200 --setting glove300-mlp128-lr0.003-drop0 --save-predictions --seed $seed
+  uv run python scripts/embedding_sweep.py --encoder lstm --device mps --vectors glove300 \
+    --output $E --lstm-reference glove300-mean-lr0.003 --epochs 25 --setting word-dropout \
+    --save-predictions --seed $seed
+  uv run ntl-error-analysis --control-label --output $E/report-label-controlled-seed-$seed \
+    --system bpe-indicator=artifacts/rope/log-linear-token-indicator \
+    --system glove-pool-mlp=$E/pooling-mlp/seed-$seed/glove300-mlp128-lr0.003-drop0-predictions.parquet \
+    --system glove-lstm=$E/lstm-followup/glove300-mean-lr0.003/seed-$seed/word-dropout-predictions.parquet
+done
+```
+
+Remove `--control-label` for the analysis without label control (`$E/report`). The BPE
+system uses the saved fold models of the Part 1 log-linear token-indicator run in
+`artifacts/rope/log-linear-token-indicator/`. Each report contains `weights.csv`,
+`weight_differences.csv`, `weights.png`, `binned_accuracy.csv` and `.png` (accuracy per
+feature quartile), `per_label_accuracy.csv`, `agreement.csv`, `features.csv`,
+`feature_correlations.csv` and `summary.json`.
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.
