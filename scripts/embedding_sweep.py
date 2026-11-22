@@ -4,6 +4,7 @@ import argparse
 import gzip
 import json
 from dataclasses import asdict, dataclass, replace
+from itertools import product
 from pathlib import Path
 from time import perf_counter
 
@@ -72,7 +73,8 @@ class Run:
     name: str
     vectors: str = "glove50"
     hidden: int = 64
-    mlp: bool = False
+    head_hidden: tuple[int, ...] = ()
+    dropout: float = 0.0
     learning_rate: float = 0.001
     mode: str = "frozen"
     fraction: float = 1.0
@@ -89,7 +91,7 @@ def settings(encoder: str) -> list[Run]:
         replace(base, name="random", mode="random"),
     ]
     if encoder == "mean":
-        runs.append(replace(base, name="mlp-head", mlp=True))
+        runs.append(replace(base, name="mlp-head", head_hidden=(128,)))
     else:
         runs += [
             replace(base, name="hidden32", hidden=32),
@@ -97,6 +99,27 @@ def settings(encoder: str) -> list[Run]:
             replace(base, name="train50", fraction=0.5),
         ]
     return runs
+
+
+def pooling_grid() -> list[Run]:
+    baselines = [
+        Run(vectors, vectors=vectors) for vectors in ("glove50", "glove300", "fasttext300")
+    ]
+    models = []
+    for vectors, hidden, rate, dropout in product(
+        ("glove300", "fasttext300"), ((128,), (256, 128)), (0.001, 0.003, 0.01), (0.0, 0.25)
+    ):
+        layers = "x".join(map(str, hidden))
+        models.append(
+            Run(
+                f"{vectors}-mlp{layers}-lr{rate:g}-drop{dropout:g}",
+                vectors=vectors,
+                head_hidden=hidden,
+                learning_rate=rate,
+                dropout=dropout,
+            )
+        )
+    return baselines + models
 
 
 class SequenceClassifier(nn.Module):
@@ -108,13 +131,14 @@ class SequenceClassifier(nn.Module):
         )
         self.lstm = nn.LSTM(width, config.hidden, batch_first=True) if encoder == "lstm" else None
         head_input = config.hidden if self.lstm is not None else width
-        self.head = (
-            nn.Sequential(nn.Linear(head_input, 128), nn.ReLU(), nn.Linear(128, len(LABELS)))
-            if config.mlp
-            else nn.Linear(head_input, len(LABELS))
-        )
+        layers = []
+        for units in config.head_hidden:
+            layers.extend((nn.Linear(head_input, units), nn.ReLU(), nn.Dropout(config.dropout)))
+            head_input = units
+        layers.append(nn.Linear(head_input, len(LABELS)))
+        self.head = nn.Sequential(*layers)
 
-    def forward(self, ids: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+    def encode(self, ids: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
         vectors = self.embedding(ids)
         if self.lstm is None:
             features = vectors.sum(dim=1) / lengths.unsqueeze(1)
@@ -122,7 +146,10 @@ class SequenceClassifier(nn.Module):
             sequence, _ = self.lstm(vectors)
             ends = (lengths - 1).view(-1, 1, 1).expand(-1, 1, sequence.shape[-1])
             features = sequence.gather(1, ends).squeeze(1)
-        return self.head(F.normalize(features, dim=1))
+        return F.normalize(features, dim=1)
+
+    def forward(self, ids: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+        return self.head(self.encode(ids, lengths))
 
 
 def batches(rows: np.ndarray, lengths: np.ndarray, size: int, rng=None):
@@ -150,18 +177,30 @@ def score_fold(encoder, config, table, tokens, lengths, labels, train, val, args
     labels_device = torch.as_tensor(labels, device=args.device)
     matrix = torch.tensor(table[used])
     if config.mode == "random":
-        rng = torch.Generator().manual_seed(DEFAULT_SEED + 1)
+        rng = torch.Generator().manual_seed(args.seed + 1)
         matrix.normal_(std=matrix[2:].std().item(), generator=rng)
         matrix[:2].zero_()
-    torch.manual_seed(DEFAULT_SEED)
+    torch.manual_seed(args.seed)
     model = SequenceClassifier(encoder, config, matrix).to(args.device)
     opt = torch.optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=0.0001)
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(args.seed)
     history = []
+    fixed_features = None
+    if encoder == "mean" and config.mode == "frozen":
+        fixed_features = matrix.new_empty((len(tokens), matrix.shape[1]), device=args.device)
+        with torch.no_grad():
+            for rows, width in batches(np.arange(len(tokens)), lengths, args.batch_size):
+                index = torch.as_tensor(rows, device=args.device)
+                fixed_features[index] = model.encode(ids[index, :width], lengths_device[index])
 
     def forward(rows, width):
         index = torch.as_tensor(rows, device=args.device)
-        return model(ids[index, :width], lengths_device[index]), labels_device[index]
+        logits = (
+            model(ids[index, :width], lengths_device[index])
+            if fixed_features is None
+            else model.head(fixed_features[index])
+        )
+        return logits, labels_device[index]
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -223,9 +262,14 @@ def run(args):
                 for fraction, groups in ((0.25, 1), (0.5, 2))
             },
         }
-    output = args.output / args.encoder
+    output = (
+        args.output / "pooling-mlp" / f"seed-{args.seed}"
+        if args.pooling_grid
+        else args.output / args.encoder
+    )
     output.mkdir(parents=True, exist_ok=True)
-    for config in settings(args.encoder):
+    candidates = pooling_grid() if args.pooling_grid else settings(args.encoder)
+    for config in candidates:
         if args.setting and config.name not in args.setting:
             continue
         result = {
@@ -233,7 +277,7 @@ def run(args):
             "settings": asdict(config),
             "epochs": args.epochs,
             "batch_size": args.batch_size,
-            "seed": DEFAULT_SEED,
+            "seed": args.seed,
             "tokenizer": WORD_TOKENIZER_NAME,
             "device": str(args.device),
             "folds": [],
@@ -276,15 +320,20 @@ def main():
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--encoder", choices=("mean", "lstm"), default="mean")
     parser.add_argument("--device", choices=("cpu", "mps"), default="cpu")
+    parser.add_argument("--pooling-grid", action="store_true")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--setting", action="append")
     args = parser.parse_args()
     if min(args.epochs, args.batch_size) < 1:
         parser.error("Epochs and batch size must be positive.")
     if args.device == "mps" and not torch.backends.mps.is_available():
         parser.error("MPS is unavailable. Use --device cpu.")
-    choices = {item.name for item in settings(args.encoder)}
+    if args.pooling_grid and args.encoder != "mean":
+        parser.error("--pooling-grid uses the mean encoder.")
+    candidates = pooling_grid() if args.pooling_grid else settings(args.encoder)
+    choices = {item.name for item in candidates}
     if args.setting and set(args.setting) - choices:
         parser.error(f"Choose settings from {', '.join(sorted(choices))}.")
     torch.set_num_threads(2)

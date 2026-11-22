@@ -354,6 +354,67 @@ Run `uv run python scripts/embedding_sweep.py --encoder mean` and
 Use `--device cpu` on machines without Apple GPU support. Per-fold scores and loss histories
 are in `artifacts/embeddings/sweep/`, with aggregate scores in `summary.json`.
 
+## Part 2 tuned mean-pooling classifiers
+
+The three logistic-regression baselines use frozen GloVe 50d, GloVe 300d, or fastText 300d.
+They share the same five prompt-grouped folds, sentence splitting followed by NLTK word
+tokenization and lowercasing, normalized mean pooling, and all training settings. Adam uses
+learning rate `0.001`, weight decay `1e-4`, and batch size 128. The word vocabulary is fitted
+on each training split, as in the design sweep above.
+
+For frozen GloVe 300d and fastText 300d, the same MLP grid combines hidden layers of
+`128` or `256 → 128` units, Adam learning rates `0.001`, `0.003`, or `0.01`, and dropout
+of `0` or `0.25`. The initial grid trains for 100 epochs and compares checkpoints at epochs
+20, 50, and 100. Both embeddings selected one 128-unit layer, learning rate `0.003`, and no
+dropout, with the best scores at epoch 100. The follow-up trains both winners and all three
+logistic baselines for 200 epochs with seeds 42, 17, and 73. It compares checkpoints at
+epochs 100, 150, and 200 for each winner. The final epoch for each is selected by mean
+validation accuracy with seed 42, and the other seeds use that same epoch. The selection
+and repeats use the same folds, so the scores describe performance on these folds and seed
+sensitivity. An independent test would be needed for a fresh estimate after selection.
+
+At the shared `0.001` learning rate and 100 epochs, the 128-unit MLP with no dropout improved
+seed-42 accuracy from 19.41% to 23.88% for GloVe 300d and from 20.44% to 27.29% for fastText
+300d. This comparison isolates the classifier change. At epoch 100, averaging matched
+settings across the grid, `0.003` beat `0.001` by 1.36 points for GloVe and 2.24 for fastText.
+The two-layer head scored 2.39 and 3.30 points lower on average than the one-layer head.
+Dropout `0.25` also reduced average accuracy in this grid.
+
+Both winners reached their highest seed-42 score at epoch 200 in the follow-up. All rows
+below use 200 epochs and average the same five folds over three seeds.
+
+| Frozen embeddings | Classifier | Adam learning rate | Mean accuracy | Mean macro F1 |
+|---|---|---:|---:|---:|
+| GloVe 50d | Logistic regression | 0.001 | 14.32% | 10.62% |
+| GloVe 300d | Logistic regression | 0.001 | 20.98% | 17.31% |
+| fastText 300d | Logistic regression | 0.001 | 21.68% | 17.20% |
+| GloVe 300d | 128-unit MLP | 0.003 | 26.08% | 23.95% |
+| fastText 300d | 128-unit MLP | 0.003 | **30.17%** | **27.12%** |
+
+Moving from 50d to 300d GloVe gained 6.66 accuracy points with the same logistic settings.
+The tuned MLP gained 5.09 points over its GloVe 300d logistic baseline and 8.50 over its
+fastText 300d baseline. These gains combine the classifier and learning-rate changes. At the
+same MLP settings, fastText led GloVe by 4.10 points and led on all five seed-averaged folds.
+
+The best frozen embedding pipeline came close to the Part 1 BPE token-indicator baseline
+(30.4% accuracy and 28.2% macro F1 under its original training rule). The three fastText MLP
+seed means ranged from 29.90% to 30.51%. Its mean of 30.17% gives no clear improvement over
+Part 1. This compares complete text representations. The frozen comparison cannot isolate
+pretrained initialization from the representation itself.
+
+Run `uv run python scripts/embedding_sweep.py --pooling-grid --epochs 100` to reproduce the
+initial grid. For the follow-up, repeat this command with seeds `42`, `17`, and `73`:
+
+```sh
+uv run python scripts/embedding_sweep.py --pooling-grid --epochs 200 --seed 42 \
+  --output artifacts/embeddings/sweep/pooling-refine \
+  --setting glove50 --setting glove300 --setting fasttext300 \
+  --setting glove300-mlp128-lr0.003-drop0 --setting fasttext300-mlp128-lr0.003-drop0
+```
+
+Fold scores and learning histories are in `artifacts/embeddings/sweep/`. The follow-up
+summary is in `artifacts/embeddings/sweep/pooling-refine/pooling-mlp/summary.json`.
+
 ## Sources
 
 - Benavoli, Corani, Demšar and Zaffalon (2017). Time for a change: a tutorial for comparing multiple classifiers through Bayesian analysis. Journal of Machine Learning Research 18.
